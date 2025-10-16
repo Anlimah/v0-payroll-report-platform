@@ -417,6 +417,14 @@ function loadPayrollPage() {
             </div>
             
             <div class="form-group">
+              <label for="isBonded">Bonded/Study Leave</label>
+                <select id="isBonded" class="form-control">
+                    <option value="0" selected>No</option>
+                    <option value="1">Yes</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
               <label for="basicSalaryInput">Basic Salary (USD)</label>
               <input type="number" id="basicSalaryInput" step="0.01" min="0">
             </div>
@@ -647,7 +655,9 @@ function displayAllowances(allowances, payrollManager) {
     <div style="display: flex; align-items: center; gap: 12px; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px;">
       <input type="checkbox" id="allow_${allowance.id}" data-id="${
 				allowance.id
-			}" class="allowance-checkbox">
+			}" class="allowance-checkbox" data-isBonded="${
+				allowance.is_bonded ? 1 : 0
+			}">
       <label for="allow_${allowance.id}" style="flex: 1; margin: 0;">${
 				allowance.allowance_name
 			}</label>
@@ -683,6 +693,31 @@ function displayAllowances(allowances, payrollManager) {
 		});
 	});
 }
+
+// function to hide all allowances that are bonded when bonded is yes
+function hideBondedAllowances() {
+	const isBonded = document.getElementById("isBonded").value === "1";
+	document.querySelectorAll(".allowance-checkbox").forEach((checkbox) => {
+		const isBondedAllowance = checkbox.dataset.isBonded === "1";
+		const amountInput = document.getElementById(
+			`allow_amount_${checkbox.dataset.id}`
+		);
+		if (isBonded && isBondedAllowance) {
+			checkbox.checked = false;
+			checkbox.disabled = true;
+			amountInput.value = "";
+			amountInput.disabled = true;
+		} else {
+			checkbox.disabled = false;
+		}
+	});
+	calculateAndDisplaySummary();
+}
+
+// Attach event listener to bonded select
+document
+	.getElementById("isBonded")
+	?.addEventListener("change", hideBondedAllowances);
 
 function displayDeductions(deductions, payrollManager) {
 	const container = document.getElementById("deductionsList");

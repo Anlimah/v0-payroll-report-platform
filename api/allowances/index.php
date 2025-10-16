@@ -62,8 +62,8 @@ try {
             exit();
         }
 
-        $query = "INSERT INTO allowances (allowance_code, allowance_name, description, is_percentage, default_amount) 
-                  VALUES (:code, :name, :description, :is_percentage, :default_amount)";
+        $query = "INSERT INTO allowances (`allowance_code`, `allowance_name`, `description`, `is_percentage`, `default_amount`, `is_bonded`) 
+                  VALUES (:code, :name, :description, :is_percentage, :default_amount, :is_bonded)";
         $stmt = $db->prepare($query);
 
         $stmt->bindParam(':code', $data->allowance_code);
@@ -71,7 +71,7 @@ try {
         $stmt->bindParam(':description', $data->description);
         $stmt->bindParam(':is_percentage', $data->is_percentage);
         $stmt->bindParam(':default_amount', $data->default_amount);
-        $stmt->bindParam('is_bonded', $data->is_bonded);
+        $stmt->bindParam('is_bonded', $data->bonded);
 
         if ($stmt->execute()) {
             $logQuery = "INSERT INTO audit_logs (user_id, action, table_name, record_id) 
@@ -86,7 +86,7 @@ try {
             echo json_encode([
                 'success' => true,
                 'message' => 'Allowance created successfully',
-                'id' => $newId
+                'id' => $newId,
             ]);
         } else {
             http_response_code(500);
@@ -113,18 +113,19 @@ try {
         }
 
         if (isset($data->is_archived)) {
-            $query = "UPDATE allowances SET is_archived = :is_archived WHERE id = :id";
+            $query = "UPDATE `allowances` SET `is_archived` = :is_archived WHERE id = :id";
             $stmt = $db->prepare($query);
             $stmt->bindParam(':id', $data->id);
             $stmt->bindParam(':is_archived', $data->is_archived);
             $action = $data->is_archived ? 'ARCHIVE' : 'RESTORE';
         } else {
-            $query = "UPDATE allowances SET 
-                      allowance_code = :code,
-                      allowance_name = :name,
-                      description = :description,
-                      is_percentage = :is_percentage,
-                      default_amount = :default_amount
+            $query = "UPDATE `allowances` SET 
+                      `allowance_code` = :code,
+                      `allowance_name` = :name,
+                      `description` = :description,
+                      `is_percentage` = :is_percentage,
+                      `default_amount` = :default_amount,
+                      `is_bonded` = :is_bonded
                       WHERE id = :id";
 
             $stmt = $db->prepare($query);
@@ -134,6 +135,7 @@ try {
             $stmt->bindParam(':description', $data->description);
             $stmt->bindParam(':is_percentage', $data->is_percentage);
             $stmt->bindParam(':default_amount', $data->default_amount);
+            $stmt->bindParam(':is_bonded', $data->bonded);
             $action = 'UPDATE';
         }
 

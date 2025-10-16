@@ -234,6 +234,9 @@ class AllowancesPage {
 				this.currentAllowance.is_percentage;
 			document.getElementById("default_amount").value =
 				this.currentAllowance.default_amount;
+			document.getElementById("bonded").value = this.currentAllowance.is_bonded
+				? "1"
+				: "0";
 			document.getElementById("description").value =
 				this.currentAllowance.description || "";
 

@@ -74,6 +74,8 @@ CREATE TABLE IF NOT EXISTS allowances (
     is_archived BOOLEAN DEFAULT FALSE
 );
 
+ALTER TABLE allowances ADD COLUMN IF NOT EXISTS is_bonded BOOLEAN DEFAULT FALSE AFTER default_amount;
+
 -- Deductions table
 CREATE TABLE IF NOT EXISTS deductions (
     id INT AUTO_INCREMENT PRIMARY KEY,

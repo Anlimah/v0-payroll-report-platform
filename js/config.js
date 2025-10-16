@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost/payroll-system/api";
+const API_BASE_URL = "http://localhost/v0-payroll-report-platform/api";
 
 const API_ENDPOINTS = {
 	// Auth
