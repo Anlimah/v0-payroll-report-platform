@@ -19,9 +19,9 @@ try {
             $stmt = $db->prepare($query);
             $stmt->bindParam(':id', $_GET['id']);
             $stmt->execute();
-            
+
             $data = $stmt->fetch();
-            
+
             http_response_code(200);
             echo json_encode([
                 'success' => true,
@@ -29,16 +29,16 @@ try {
             ]);
         } else {
             $includeArchived = isset($_GET['include_archived']) ? $_GET['include_archived'] : false;
-            
+
             if ($includeArchived) {
                 $query = "SELECT * FROM allowances ORDER BY allowance_name";
             } else {
                 $query = "SELECT * FROM allowances WHERE is_archived = 0 ORDER BY allowance_name";
             }
-            
+
             $stmt = $db->query($query);
             $allowances = $stmt->fetchAll();
-            
+
             http_response_code(200);
             echo json_encode([
                 'success' => true,
@@ -50,9 +50,9 @@ try {
     // POST - Create new allowance
     else if ($method === 'POST') {
         requireAdmin($user);
-        
+
         $data = json_decode(file_get_contents("php://input"));
-        
+
         if (!isset($data->allowance_code) || !isset($data->allowance_name)) {
             http_response_code(400);
             echo json_encode([
@@ -61,17 +61,18 @@ try {
             ]);
             exit();
         }
-        
+
         $query = "INSERT INTO allowances (allowance_code, allowance_name, description, is_percentage, default_amount) 
                   VALUES (:code, :name, :description, :is_percentage, :default_amount)";
         $stmt = $db->prepare($query);
-        
+
         $stmt->bindParam(':code', $data->allowance_code);
         $stmt->bindParam(':name', $data->allowance_name);
         $stmt->bindParam(':description', $data->description);
         $stmt->bindParam(':is_percentage', $data->is_percentage);
         $stmt->bindParam(':default_amount', $data->default_amount);
-        
+        $stmt->bindParam('is_bonded', $data->is_bonded);
+
         if ($stmt->execute()) {
             $logQuery = "INSERT INTO audit_logs (user_id, action, table_name, record_id) 
                          VALUES (:user_id, 'CREATE', 'allowances', :record_id)";
@@ -80,7 +81,7 @@ try {
             $newId = $db->lastInsertId();
             $logStmt->bindParam(':record_id', $newId);
             $logStmt->execute();
-            
+
             http_response_code(201);
             echo json_encode([
                 'success' => true,
@@ -99,9 +100,9 @@ try {
     // PUT - Update allowance
     else if ($method === 'PUT') {
         requireAdmin($user);
-        
+
         $data = json_decode(file_get_contents("php://input"));
-        
+
         if (!isset($data->id)) {
             http_response_code(400);
             echo json_encode([
@@ -110,7 +111,7 @@ try {
             ]);
             exit();
         }
-        
+
         if (isset($data->is_archived)) {
             $query = "UPDATE allowances SET is_archived = :is_archived WHERE id = :id";
             $stmt = $db->prepare($query);
@@ -125,7 +126,7 @@ try {
                       is_percentage = :is_percentage,
                       default_amount = :default_amount
                       WHERE id = :id";
-            
+
             $stmt = $db->prepare($query);
             $stmt->bindParam(':id', $data->id);
             $stmt->bindParam(':code', $data->allowance_code);
@@ -135,7 +136,7 @@ try {
             $stmt->bindParam(':default_amount', $data->default_amount);
             $action = 'UPDATE';
         }
-        
+
         if ($stmt->execute()) {
             $logQuery = "INSERT INTO audit_logs (user_id, action, table_name, record_id) 
                          VALUES (:user_id, :action, 'allowances', :record_id)";
@@ -144,7 +145,7 @@ try {
             $logStmt->bindParam(':action', $action);
             $logStmt->bindParam(':record_id', $data->id);
             $logStmt->execute();
-            
+
             http_response_code(200);
             echo json_encode([
                 'success' => true,
@@ -162,9 +163,9 @@ try {
     // DELETE - Delete allowance
     else if ($method === 'DELETE') {
         requireAdmin($user);
-        
+
         $data = json_decode(file_get_contents("php://input"));
-        
+
         if (!isset($data->id)) {
             http_response_code(400);
             echo json_encode([
@@ -173,11 +174,11 @@ try {
             ]);
             exit();
         }
-        
+
         $query = "DELETE FROM allowances WHERE id = :id";
         $stmt = $db->prepare($query);
         $stmt->bindParam(':id', $data->id);
-        
+
         if ($stmt->execute()) {
             $logQuery = "INSERT INTO audit_logs (user_id, action, table_name, record_id) 
                          VALUES (:user_id, 'DELETE', 'allowances', :record_id)";
@@ -185,7 +186,7 @@ try {
             $logStmt->bindParam(':user_id', $user->user_id);
             $logStmt->bindParam(':record_id', $data->id);
             $logStmt->execute();
-            
+
             http_response_code(200);
             echo json_encode([
                 'success' => true,
@@ -204,7 +205,7 @@ try {
         'method' => $method ?? 'Unknown',
         'endpoint' => 'allowances'
     ]);
-    
+
     http_response_code(500);
     echo json_encode([
         'success' => false,
@@ -215,11 +216,10 @@ try {
         'method' => $method ?? 'Unknown',
         'endpoint' => 'allowances'
     ]);
-    
+
     http_response_code(500);
     echo json_encode([
         'success' => false,
         'message' => 'An unexpected error occurred'
     ]);
 }
-?>

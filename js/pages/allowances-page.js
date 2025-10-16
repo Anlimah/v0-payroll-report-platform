@@ -60,14 +60,17 @@ class AllowancesPage {
           </div>
           <div class="modal-body">
             <form id="allowance-form">
-              <div class="form-group">
-                <label for="allowance_code">Allowance Code *</label>
-                <input type="text" id="allowance_code" name="allowance_code" required>
-              </div>
 
-              <div class="form-group">
-                <label for="allowance_name">Allowance Name *</label>
-                <input type="text" id="allowance_name" name="allowance_name" required>
+              <div class="form-row">
+                <div class="form-group">
+                    <label for="allowance_code">Allowance Code *</label>
+                    <input type="text" id="allowance_code" name="allowance_code" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="allowance_name">Allowance Name *</label>
+                    <input type="text" id="allowance_name" name="allowance_name" required>
+                </div>
               </div>
 
               <div class="form-row">
@@ -85,6 +88,15 @@ class AllowancesPage {
                   <input type="number" id="default_amount" name="default_amount" step="0.01" min="0" required>
                 </div>
               </div>
+              
+                <div class="form-group">
+                  <label for="bonded">Bonded/Study Leave *</label>
+                  <select id="bonded" name="bonded" required>
+                    <option value="">Select Option</option>
+                    <option value="0">No</option>
+                    <option value="1">Yes</option>
+                  </select>
+                </div>
 
               <div class="form-group">
                 <label for="description">Description</label>
