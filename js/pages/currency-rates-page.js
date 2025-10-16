@@ -1,11 +1,14 @@
 class CurrencyRatesPage {
-  constructor() {
-    this.crudManager = new window.CRUDManager(window.API_ENDPOINTS.CURRENCY_RATES, "currency rate")
-    this.currentRate = null
-  }
+	constructor() {
+		this.crudManager = new window.CRUDManager(
+			window.API_ENDPOINTS.CURRENCY_RATES,
+			"currency rate"
+		);
+		this.currentRate = null;
+	}
 
-  render() {
-    return `
+	render() {
+		return `
       <div class="card">
         <div class="card-header">
           <h2 class="card-title">Currency Rates Management (USD to GHS)</h2>
@@ -70,177 +73,215 @@ class CurrencyRatesPage {
           </div>
         </div>
       </div>
-    `
-  }
+    `;
+	}
 
-  async init() {
-    await this.loadRates()
-    this.attachEventListeners()
-  }
+	async init() {
+		await this.loadRates();
+		this.attachEventListeners();
+	}
 
-  attachEventListeners() {
-    // Add event listener for rate preview after modal is rendered
-    setTimeout(() => {
-      const rateInput = document.getElementById("rate")
-      if (rateInput) {
-        rateInput.addEventListener("input", (e) => {
-          const preview = document.getElementById("rate-preview")
-          if (preview) {
-            preview.textContent = Number.parseFloat(e.target.value || 0).toFixed(4)
-          }
-        })
-      }
-    }, 100)
-  }
+	attachEventListeners() {
+		// Add event listener for rate preview after modal is rendered
+		setTimeout(() => {
+			const rateInput = document.getElementById("rate");
+			if (rateInput) {
+				rateInput.addEventListener("input", (e) => {
+					const preview = document.getElementById("rate-preview");
+					if (preview) {
+						preview.textContent = Number.parseFloat(
+							e.target.value || 0
+						).toFixed(4);
+					}
+				});
+			}
+		}, 100);
+	}
 
-  async loadRates() {
-    try {
-      const response = await this.crudManager.getAll()
-      console.log("[v0] Currency rates response:", response)
-      const rates = response.data || []
-      this.renderTable(rates)
-    } catch (error) {
-      console.error("[v0] Error loading currency rates:", error)
-      document.getElementById("rates-tbody").innerHTML = `
+	async loadRates() {
+		try {
+			const response = await this.crudManager.getAll();
+			console.log("[v0] Currency rates response:", response);
+			const rates = response.data || [];
+			this.renderTable(rates);
+		} catch (error) {
+			console.error("[v0] Error loading currency rates:", error);
+			document.getElementById("rates-tbody").innerHTML = `
         <tr>
           <td colspan="5" class="error-message">Failed to load currency rates. Please try again.</td>
         </tr>
-      `
-    }
-  }
+      `;
+		}
+	}
 
-  renderTable(rates) {
-    const tbody = document.getElementById("rates-tbody")
+	renderTable(rates) {
+		const tbody = document.getElementById("rates-tbody");
 
-    if (rates.length === 0) {
-      tbody.innerHTML = `
+		if (rates.length === 0) {
+			tbody.innerHTML = `
         <tr>
           <td colspan="5" class="empty-state">
             <div class="empty-state-icon">💱</div>
             <div class="empty-state-text">No currency rates found. Set your first exchange rate to get started.</div>
           </td>
         </tr>
-      `
-      return
-    }
+      `;
+			return;
+		}
 
-    tbody.innerHTML = rates
-      .map((rate) => {
-        const effectiveDate = new Date(rate.effective_date)
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        const isCurrent = effectiveDate <= today
+		tbody.innerHTML = rates
+			.map((rate) => {
+				const effectiveDate = new Date(rate.effective_date);
+				const today = new Date();
+				today.setHours(0, 0, 0, 0);
+				const isCurrent = effectiveDate <= today;
 
-        return `
+				return `
         <tr>
           <td>${new Date(rate.effective_date).toLocaleDateString()}</td>
-          <td><strong>${Number.parseFloat(rate.rate).toFixed(4)}</strong> GHS</td>
+          <td><strong>${Number.parseFloat(rate.rate).toFixed(
+						4
+					)}</strong> GHS</td>
           <td>${rate.set_by_name || "System"}</td>
           <td>
-            <span class="badge ${isCurrent ? "badge-success" : "badge-warning"}">
+            <span class="badge ${
+							isCurrent ? "badge-success" : "badge-warning"
+						}">
               ${isCurrent ? "Active" : "Future"}
             </span>
           </td>
           <td>
             <div class="action-buttons">
-              <button class="btn btn-sm btn-primary" onclick="window.currencyRatesPage.showEditModal(${rate.id})" title="Edit">
+              <button class="btn btn-sm btn-primary" onclick="window.currencyRatesPage.showEditModal(${
+								rate.id
+							})" title="Edit">
                 Edit
               </button>
-              <button class="btn btn-sm btn-danger" onclick="window.currencyRatesPage.deleteRate(${rate.id})" title="Delete">
+              <button class="btn btn-sm btn-danger" onclick="window.currencyRatesPage.deleteRate(${
+								rate.id
+							})" title="Delete">
                 Delete
               </button>
             </div>
           </td>
         </tr>
-      `
-      })
-      .join("")
-  }
+      `;
+			})
+			.join("");
+	}
 
-  showCreateModal() {
-    this.currentRate = null
-    document.getElementById("modal-title").textContent = "Set Currency Rate"
-    document.getElementById("rate-form").reset()
+	showCreateModal() {
+		this.currentRate = null;
+		document.getElementById("modal-title").textContent = "Set Currency Rate";
+		document.getElementById("rate-form").reset();
 
-    // Set today's date as default
-    const today = new Date().toISOString().split("T")[0]
-    document.getElementById("effective_date").value = today
-    document.getElementById("rate-preview").textContent = "0.0000"
+		// Set today's date as default
+		const today = new Date().toISOString().split("T")[0];
+		document.getElementById("effective_date").value = today;
+		document.getElementById("rate-preview").textContent = "0.0000";
 
-    document.getElementById("rate-modal").classList.add("active")
-  }
+		document.getElementById("rate-modal").classList.add("active");
+	}
 
-  async showEditModal(id) {
-    try {
-      const response = await this.crudManager.getById(id)
-      this.currentRate = response.data
-      document.getElementById("modal-title").textContent = "Edit Currency Rate"
+	async showEditModal(id) {
+		try {
+			const response = await this.crudManager.getById(id);
+			this.currentRate = response.data;
+			document.getElementById("modal-title").textContent = "Edit Currency Rate";
 
-      document.getElementById("effective_date").value = this.currentRate.effective_date
-      document.getElementById("rate").value = this.currentRate.rate
-      document.getElementById("rate-preview").textContent = Number.parseFloat(this.currentRate.rate).toFixed(4)
+			document.getElementById("effective_date").value =
+				this.currentRate.effective_date;
+			document.getElementById("rate").value = this.currentRate.rate;
+			document.getElementById("rate-preview").textContent = Number.parseFloat(
+				this.currentRate.rate
+			).toFixed(4);
 
-      document.getElementById("rate-modal").classList.add("active")
-    } catch (error) {
-      console.error("[v0] Error loading currency rate:", error)
-      this.crudManager.showMessage("Failed to load currency rate details", "error")
-    }
-  }
+			document.getElementById("rate-modal").classList.add("active");
+		} catch (error) {
+			console.error("[v0] Error loading currency rate:", error);
+			this.crudManager.showMessage(
+				"Failed to load currency rate details",
+				"error"
+			);
+		}
+	}
 
-  closeModal() {
-    document.getElementById("rate-modal").classList.remove("active")
-    this.currentRate = null
-  }
+	closeModal() {
+		document.getElementById("rate-modal").classList.remove("active");
+		this.currentRate = null;
+	}
 
-  async saveRate() {
-    const form = document.getElementById("rate-form")
-    if (!form.checkValidity()) {
-      form.reportValidity()
-      return
-    }
+	async saveRate() {
+		const form = document.getElementById("rate-form");
+		if (!form.checkValidity()) {
+			form.reportValidity();
+			return;
+		}
 
-    const formData = new FormData(form)
-    const data = Object.fromEntries(formData.entries())
+		const formData = new FormData(form);
+		const data = Object.fromEntries(formData.entries());
 
-    try {
-      let response
-      if (this.currentRate) {
-        response = await this.crudManager.update(this.currentRate.id, data)
-      } else {
-        response = await this.crudManager.create(data)
-      }
+		try {
+			let response;
+			if (this.currentRate) {
+				response = await this.crudManager.update(this.currentRate.id, data);
+			} else {
+				response = await this.crudManager.create(data);
+			}
 
-      if (response.success) {
-        this.crudManager.showMessage(response.message || "Currency rate saved successfully!", "success")
-        this.closeModal()
-        await this.loadRates()
-      } else {
-        this.crudManager.showMessage(response.message || "Failed to save currency rate", "error")
-      }
-    } catch (error) {
-      console.error("[v0] Error saving currency rate:", error)
-      this.crudManager.showMessage("Failed to save currency rate. Please try again.", "error")
-    }
-  }
+			if (response.success) {
+				this.crudManager.showMessage(
+					response.message || "Currency rate saved successfully!",
+					"success"
+				);
+				this.closeModal();
+				await this.loadRates();
+			} else {
+				this.crudManager.showMessage(
+					response.message || "Failed to save currency rate",
+					"error"
+				);
+			}
+		} catch (error) {
+			console.error("[v0] Error saving currency rate:", error);
+			this.crudManager.showMessage(
+				"Failed to save currency rate. Please try again.",
+				"error"
+			);
+		}
+	}
 
-  async deleteRate(id) {
-    if (!confirm("Are you sure you want to delete this currency rate? This action cannot be undone.")) {
-      return
-    }
+	async deleteRate(id) {
+		if (
+			!confirm(
+				"Are you sure you want to delete this currency rate? This action cannot be undone."
+			)
+		) {
+			return;
+		}
 
-    try {
-      const response = await this.crudManager.delete(id)
-      if (response.success) {
-        this.crudManager.showMessage("Currency rate deleted successfully!", "success")
-        await this.loadRates()
-      } else {
-        this.crudManager.showMessage(response.message || "Failed to delete currency rate", "error")
-      }
-    } catch (error) {
-      console.error("[v0] Error deleting currency rate:", error)
-      this.crudManager.showMessage("Failed to delete currency rate. Please try again.", "error")
-    }
-  }
+		try {
+			const response = await this.crudManager.delete(id);
+			if (response.success) {
+				this.crudManager.showMessage(
+					"Currency rate deleted successfully!",
+					"success"
+				);
+				await this.loadRates();
+			} else {
+				this.crudManager.showMessage(
+					response.message || "Failed to delete currency rate",
+					"error"
+				);
+			}
+		} catch (error) {
+			console.error("[v0] Error deleting currency rate:", error);
+			this.crudManager.showMessage(
+				"Failed to delete currency rate. Please try again.",
+				"error"
+			);
+		}
+	}
 }
 
-window.currencyRatesPage = new CurrencyRatesPage()
+window.currencyRatesPage = new CurrencyRatesPage();

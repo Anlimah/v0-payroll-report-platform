@@ -23,9 +23,9 @@ try {
             $stmt = $db->prepare($query);
             $stmt->bindParam(':staff_number', $_GET['staff_number']);
             $stmt->execute();
-            
+
             $data = $stmt->fetch();
-            
+
             http_response_code(200);
             echo json_encode([
                 'success' => true,
@@ -40,9 +40,9 @@ try {
             $stmt = $db->prepare($query);
             $stmt->bindParam(':id', $_GET['id']);
             $stmt->execute();
-            
+
             $data = $stmt->fetch();
-            
+
             http_response_code(200);
             echo json_encode([
                 'success' => true,
@@ -50,7 +50,7 @@ try {
             ]);
         } else {
             $includeArchived = isset($_GET['include_archived']) ? $_GET['include_archived'] : false;
-            
+
             if ($includeArchived) {
                 $query = "SELECT s.*, d.department_name, des.designation_name 
                           FROM staffs s
@@ -65,10 +65,10 @@ try {
                           WHERE s.is_archived = 0
                           ORDER BY s.last_name, s.first_name";
             }
-            
+
             $stmt = $db->query($query);
             $staffs = $stmt->fetchAll();
-            
+
             http_response_code(200);
             echo json_encode([
                 'success' => true,
@@ -80,9 +80,9 @@ try {
     // POST - Create new staff
     else if ($method === 'POST') {
         requireAdmin($user);
-        
+
         $data = json_decode(file_get_contents("php://input"));
-        
+
         if (!isset($data->staff_number) || !isset($data->first_name) || !isset($data->last_name)) {
             http_response_code(400);
             echo json_encode([
@@ -91,26 +91,27 @@ try {
             ]);
             exit();
         }
-        
-        $query = "INSERT INTO staffs (staff_number, first_name, last_name, other_names, email, phone, 
-                  department_id, designation_id, bank_name, account_number, basic_salary, hire_date) 
-                  VALUES (:staff_number, :first_name, :last_name, :other_names, :email, :phone, 
-                  :department_id, :designation_id, :bank_name, :account_number, :basic_salary, :hire_date)";
+
+        $query = "INSERT INTO staffs (`staff_number`, `first_name`, `last_name`, `other_names`, `ssnit`, `ghana_card`, 
+                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `hire_date`) 
+                  VALUES (:staff_number, :first_name, :last_name, :other_names, :ssnit, :ghanacard, 
+                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :hire_date)";
         $stmt = $db->prepare($query);
-        
+
         $stmt->bindParam(':staff_number', $data->staff_number);
         $stmt->bindParam(':first_name', $data->first_name);
         $stmt->bindParam(':last_name', $data->last_name);
         $stmt->bindParam(':other_names', $data->other_names);
-        $stmt->bindParam(':email', $data->email);
-        $stmt->bindParam(':phone', $data->phone);
+        $stmt->bindParam(':ssnit', $data->ssnit);
+        $stmt->bindParam(':ghanacard', $data->ghanacard);
         $stmt->bindParam(':department_id', $data->department_id);
         $stmt->bindParam(':designation_id', $data->designation_id);
+        $stmt->bindParam(':status', $data->status);
         $stmt->bindParam(':bank_name', $data->bank_name);
         $stmt->bindParam(':account_number', $data->account_number);
         $stmt->bindParam(':basic_salary', $data->basic_salary);
         $stmt->bindParam(':hire_date', $data->hire_date);
-        
+
         if ($stmt->execute()) {
             $logQuery = "INSERT INTO audit_logs (user_id, action, table_name, record_id) 
                          VALUES (:user_id, 'CREATE', 'staffs', :record_id)";
@@ -119,7 +120,7 @@ try {
             $newId = $db->lastInsertId();
             $logStmt->bindParam(':record_id', $newId);
             $logStmt->execute();
-            
+
             http_response_code(201);
             echo json_encode([
                 'success' => true,
@@ -138,9 +139,9 @@ try {
     // PUT - Update staff
     else if ($method === 'PUT') {
         requireAdmin($user);
-        
+
         $data = json_decode(file_get_contents("php://input"));
-        
+
         if (!isset($data->id)) {
             http_response_code(400);
             echo json_encode([
@@ -149,7 +150,7 @@ try {
             ]);
             exit();
         }
-        
+
         if (isset($data->is_archived)) {
             $query = "UPDATE staffs SET is_archived = :is_archived WHERE id = :id";
             $stmt = $db->prepare($query);
@@ -157,38 +158,40 @@ try {
             $stmt->bindParam(':is_archived', $data->is_archived);
             $action = $data->is_archived ? 'ARCHIVE' : 'RESTORE';
         } else {
-            $query = "UPDATE staffs SET 
-                      staff_number = :staff_number,
-                      first_name = :first_name,
-                      last_name = :last_name,
-                      other_names = :other_names,
-                      email = :email,
-                      phone = :phone,
-                      department_id = :department_id,
-                      designation_id = :designation_id,
-                      bank_name = :bank_name,
-                      account_number = :account_number,
-                      basic_salary = :basic_salary,
-                      hire_date = :hire_date
+            $query = "UPDATE `staffs` SET 
+                      `staff_number` = :staff_number,
+                      `first_name` = :first_name,
+                      `last_name` = :last_name,
+                      `other_names` = :other_names,
+                      `ssnit` = :ssnit,
+                      `ghana_card` = :ghanacard,
+                      `department_id` = :department_id,
+                      `designation_id` = :designation_id,
+                      `status` = :status,
+                      `bank_name` = :bank_name,
+                      `account_number` = :account_number,
+                      `basic_salary` = :basic_salary,
+                      `hire_date` = :hire_date
                       WHERE id = :id";
-            
+
             $stmt = $db->prepare($query);
             $stmt->bindParam(':id', $data->id);
             $stmt->bindParam(':staff_number', $data->staff_number);
             $stmt->bindParam(':first_name', $data->first_name);
             $stmt->bindParam(':last_name', $data->last_name);
             $stmt->bindParam(':other_names', $data->other_names);
-            $stmt->bindParam(':email', $data->email);
-            $stmt->bindParam(':phone', $data->phone);
+            $stmt->bindParam(':ssnit', $data->ssnit);
+            $stmt->bindParam(':ghanacard', $data->ghanacard);
             $stmt->bindParam(':department_id', $data->department_id);
             $stmt->bindParam(':designation_id', $data->designation_id);
+            $stmt->bindParam(':status', $data->status);
             $stmt->bindParam(':bank_name', $data->bank_name);
             $stmt->bindParam(':account_number', $data->account_number);
             $stmt->bindParam(':basic_salary', $data->basic_salary);
             $stmt->bindParam(':hire_date', $data->hire_date);
             $action = 'UPDATE';
         }
-        
+
         if ($stmt->execute()) {
             $logQuery = "INSERT INTO audit_logs (user_id, action, table_name, record_id) 
                          VALUES (:user_id, :action, 'staffs', :record_id)";
@@ -197,7 +200,7 @@ try {
             $logStmt->bindParam(':action', $action);
             $logStmt->bindParam(':record_id', $data->id);
             $logStmt->execute();
-            
+
             http_response_code(200);
             echo json_encode([
                 'success' => true,
@@ -215,9 +218,9 @@ try {
     // DELETE - Delete staff
     else if ($method === 'DELETE') {
         requireAdmin($user);
-        
+
         $data = json_decode(file_get_contents("php://input"));
-        
+
         if (!isset($data->id)) {
             http_response_code(400);
             echo json_encode([
@@ -226,11 +229,11 @@ try {
             ]);
             exit();
         }
-        
+
         $query = "DELETE FROM staffs WHERE id = :id";
         $stmt = $db->prepare($query);
         $stmt->bindParam(':id', $data->id);
-        
+
         if ($stmt->execute()) {
             $logQuery = "INSERT INTO audit_logs (user_id, action, table_name, record_id) 
                          VALUES (:user_id, 'DELETE', 'staffs', :record_id)";
@@ -238,7 +241,7 @@ try {
             $logStmt->bindParam(':user_id', $user->user_id);
             $logStmt->bindParam(':record_id', $data->id);
             $logStmt->execute();
-            
+
             http_response_code(200);
             echo json_encode([
                 'success' => true,
@@ -258,7 +261,7 @@ try {
         'endpoint' => 'staffs',
         'staff_number' => $_GET['staff_number'] ?? 'N/A'
     ]);
-    
+
     http_response_code(500);
     echo json_encode([
         'success' => false,
@@ -269,11 +272,10 @@ try {
         'method' => $method ?? 'Unknown',
         'endpoint' => 'staffs'
     ]);
-    
+
     http_response_code(500);
     echo json_encode([
         'success' => false,
         'message' => 'An unexpected error occurred'
     ]);
 }
-?>
