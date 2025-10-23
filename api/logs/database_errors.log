@@ -1,0 +1,11 @@
+
+================================================================================
+[2025-10-23 15:57:09] ERROR
+Message: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'payroll_system.staff_allowances' doesn't exist
+File: C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php
+Line: 70
+Context: {"query":"SELECT s.*, d.department_name, des.designation_name \r\n                      FROM staffs s\r\n                      LEFT JOIN departments d ON s.department_id = d.id\r\n                      LEFT JOIN designations des ON s.designation_id = des.id\r\n                      WHERE s.id = :id","params":{"method":"GET","endpoint":"staffs","staff_number":"N\/A"},"type":"DATABASE_ERROR"}
+Stack Trace:
+#0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(70): PDOStatement->execute()
+#1 {main}
+================================================================================
