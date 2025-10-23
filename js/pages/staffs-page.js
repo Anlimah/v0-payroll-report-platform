@@ -1,25 +1,24 @@
 class StaffsPage {
-	constructor() {
-		this.crudManager = new window.CRUDManager(
-			window.API_ENDPOINTS.STAFFS,
-			"staff"
-		);
-		this.currentEditId = null;
-		this.showArchived = false;
-		this.departments = [];
-		this.designations = [];
-	}
+  constructor() {
+    this.crudManager = new window.CRUDManager(window.API_ENDPOINTS.STAFFS, "staff")
+    this.currentEditId = null
+    this.showArchived = false
+    this.departments = []
+    this.designations = []
+    this.allowances = []
+    this.deductions = []
+    this.selectedAllowances = []
+    this.selectedDeductions = []
+  }
 
-	render() {
-		return `
+  render() {
+    return `
       <div class="card">
         <div class="card-header">
           <h2 class="card-title">Staff Management</h2>
           <div style="display: flex; gap: 12px;">
             <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
-              <input type="checkbox" id="showArchivedStaffs" ${
-								this.showArchived ? "checked" : ""
-							}>
+              <input type="checkbox" id="showArchivedStaffs" ${this.showArchived ? "checked" : ""}>
               Show Archived
             </label>
             <button class="btn btn-primary" id="addStaffBtn">Add New Staff</button>
@@ -50,7 +49,7 @@ class StaffsPage {
 
       <!-- Staff Modal -->
       <div class="modal" id="staffModal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
           <div class="modal-header">
             <h3 class="modal-title" id="staffModalTitle">Add New Staff</h3>
             <button class="modal-close" id="closeStaffModal">&times;</button>
@@ -135,6 +134,22 @@ class StaffsPage {
                   <input type="text" id="accountNumber" placeholder="Bank account number">
                 </div>
               </div>
+
+              <!-- Add allowances section -->
+              <div class="form-group">
+                <label style="font-weight: bold; margin-top: 20px; display: block;">Allowances</label>
+                <div id="allowancesContainer" style="border: 1px solid #ddd; padding: 12px; border-radius: 4px; max-height: 200px; overflow-y: auto;">
+                  <!-- Allowances will be populated here -->
+                </div>
+              </div>
+
+              <!-- Add deductions section -->
+              <div class="form-group">
+                <label style="font-weight: bold; margin-top: 20px; display: block;">Deductions</label>
+                <div id="deductionsContainer" style="border: 1px solid #ddd; padding: 12px; border-radius: 4px; max-height: 200px; overflow-y: auto;">
+                  <!-- Deductions will be populated here -->
+                </div>
+              </div>
             </form>
           </div>
           <div class="modal-footer">
@@ -143,116 +158,136 @@ class StaffsPage {
           </div>
         </div>
       </div>
-    `;
-	}
+    `
+  }
 
-	async loadDepartmentsAndDesignations() {
-		try {
-			const [deptResponse, desigResponse] = await Promise.all([
-				window.ApiService.get(window.API_ENDPOINTS.DEPARTMENTS),
-				window.ApiService.get(window.API_ENDPOINTS.DESIGNATIONS),
-			]);
+  async loadDepartmentsAndDesignations() {
+    try {
+      const [deptResponse, desigResponse, allowancesResponse, deductionsResponse] = await Promise.all([
+        window.ApiService.get(window.API_ENDPOINTS.DEPARTMENTS),
+        window.ApiService.get(window.API_ENDPOINTS.DESIGNATIONS),
+        window.ApiService.get(window.API_ENDPOINTS.ALLOWANCES),
+        window.ApiService.get(window.API_ENDPOINTS.DEDUCTIONS),
+      ])
 
-			if (deptResponse.success) {
-				this.departments = deptResponse.data.filter((d) => !d.is_archived);
-			}
+      if (deptResponse.success) {
+        this.departments = deptResponse.data.filter((d) => !d.is_archived)
+      }
 
-			if (desigResponse.success) {
-				this.designations = desigResponse.data.filter((d) => !d.is_archived);
-			}
+      if (desigResponse.success) {
+        this.designations = desigResponse.data.filter((d) => !d.is_archived)
+      }
 
-			this.populateDropdowns();
-		} catch (error) {
-			console.error("Error loading departments and designations:", error);
-		}
-	}
+      if (allowancesResponse.success) {
+        this.allowances = allowancesResponse.data.filter((a) => !a.is_archived)
+      }
 
-	populateDropdowns() {
-		const deptSelect = document.getElementById("departmentId");
-		const desigSelect = document.getElementById("designationId");
+      if (deductionsResponse.success) {
+        this.deductions = deductionsResponse.data.filter((d) => !d.is_archived)
+      }
 
-		if (deptSelect) {
-			deptSelect.innerHTML =
-				'<option value="">Select Department</option>' +
-				this.departments
-					.map((d) => `<option value="${d.id}">${d.department_name}</option>`)
-					.join("");
-		}
+      this.populateDropdowns()
+    } catch (error) {
+      console.error("Error loading departments and designations:", error)
+    }
+  }
 
-		if (desigSelect) {
-			desigSelect.innerHTML =
-				'<option value="">Select Designation</option>' +
-				this.designations
-					.map(
-						(d) =>
-							`<option value="${d.id}">${d.designation_name} (${d.designation_code})</option>`
-					)
-					.join("");
-		}
-	}
+  populateDropdowns() {
+    const deptSelect = document.getElementById("departmentId")
+    const desigSelect = document.getElementById("designationId")
 
-	attachEventListeners() {
-		document
-			.getElementById("addStaffBtn")
-			.addEventListener("click", () => this.openModal());
-		document
-			.getElementById("closeStaffModal")
-			.addEventListener("click", () => this.closeModal());
-		document
-			.getElementById("cancelStaffBtn")
-			.addEventListener("click", () => this.closeModal());
-		document
-			.getElementById("saveStaffBtn")
-			.addEventListener("click", () => this.saveStaff());
-		document
-			.getElementById("showArchivedStaffs")
-			.addEventListener("change", (e) => {
-				this.showArchived = e.target.checked;
-				this.loadStaffs();
-			});
-	}
+    if (deptSelect) {
+      deptSelect.innerHTML =
+        '<option value="">Select Department</option>' +
+        this.departments.map((d) => `<option value="${d.id}">${d.department_name}</option>`).join("")
+    }
 
-	async loadStaffs() {
-		try {
-			const response = await this.crudManager.getAll(this.showArchived);
-			const tbody = document.getElementById("staffsTableBody");
+    if (desigSelect) {
+      desigSelect.innerHTML =
+        '<option value="">Select Designation</option>' +
+        this.designations
+          .map((d) => `<option value="${d.id}">${d.designation_name} (${d.designation_code})</option>`)
+          .join("")
+    }
 
-			if (response.success && response.data.length > 0) {
-				tbody.innerHTML = response.data
-					.map(
-						(staff) => `
+    this.populateAllowancesAndDeductions()
+  }
+
+  populateAllowancesAndDeductions() {
+    const allowancesContainer = document.getElementById("allowancesContainer")
+    const deductionsContainer = document.getElementById("deductionsContainer")
+
+    if (allowancesContainer) {
+      allowancesContainer.innerHTML = this.allowances
+        .map(
+          (a) =>
+            `<label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <input type="checkbox" class="allowance-checkbox" value="${a.id}" data-name="${a.allowance_name}">
+                    ${a.allowance_name} (${a.allowance_code})
+                  </label>`,
+        )
+        .join("")
+    }
+
+    if (deductionsContainer) {
+      deductionsContainer.innerHTML = this.deductions
+        .map(
+          (d) =>
+            `<label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <input type="checkbox" class="deduction-checkbox" value="${d.id}" data-name="${d.deduction_name}">
+                    ${d.deduction_name} (${d.deduction_code})
+                  </label>`,
+        )
+        .join("")
+    }
+  }
+
+  attachEventListeners() {
+    document.getElementById("addStaffBtn").addEventListener("click", () => this.openModal())
+    document.getElementById("closeStaffModal").addEventListener("click", () => this.closeModal())
+    document.getElementById("cancelStaffBtn").addEventListener("click", () => this.closeModal())
+    document.getElementById("saveStaffBtn").addEventListener("click", () => this.saveStaff())
+    document.getElementById("showArchivedStaffs").addEventListener("change", (e) => {
+      this.showArchived = e.target.checked
+      this.loadStaffs()
+    })
+  }
+
+  async loadStaffs() {
+    try {
+      const response = await this.crudManager.getAll(this.showArchived)
+      const tbody = document.getElementById("staffsTableBody")
+
+      if (response.success && response.data.length > 0) {
+        tbody.innerHTML = response.data
+          .map(
+            (staff) => `
           <tr>
             <td><strong>${staff.staff_number}</strong></td>
-            <td>${staff.first_name} ${staff.last_name}${
-							staff.other_names ? " " + staff.other_names : ""
-						}</td>
+            <td>${staff.first_name} ${staff.last_name}${staff.other_names ? " " + staff.other_names : ""}</td>
             <td>${staff.department_name || "-"}</td>
             <td>${staff.designation_name || "-"}</td>
             <td>$${Number.parseFloat(staff.basic_salary).toFixed(2)}</td>
             <td><span class="badge ${
-							staff.is_archived ? "badge-danger" : "badge-success"
-						}">${staff.is_archived ? "Archived" : "Active"}</span></td>
+              staff.is_archived ? "badge-danger" : "badge-success"
+            }">${staff.is_archived ? "Archived" : "Active"}</span></td>
             <td>
               <div class="action-buttons">
-                <button class="btn btn-sm btn-primary" onclick="staffsPage.editStaff(${
-									staff.id
-								})">Edit</button>
+                <button class="btn btn-sm btn-primary" onclick="staffsPage.editStaff(${staff.id})">Edit</button>
                 ${
-									!staff.is_archived
-										? `<button class="btn btn-sm btn-warning" onclick="staffsPage.archiveStaff(${staff.id})">Archive</button>`
-										: `<button class="btn btn-sm btn-success" onclick="staffsPage.unarchiveStaff(${staff.id})">Unarchive</button>`
-								}
-                <button class="btn btn-sm btn-danger" onclick="staffsPage.deleteStaff(${
-									staff.id
-								})">Delete</button>
+                  !staff.is_archived
+                    ? `<button class="btn btn-sm btn-warning" onclick="staffsPage.archiveStaff(${staff.id})">Archive</button>`
+                    : `<button class="btn btn-sm btn-success" onclick="staffsPage.unarchiveStaff(${staff.id})">Unarchive</button>`
+                }
+                <button class="btn btn-sm btn-danger" onclick="staffsPage.deleteStaff(${staff.id})">Delete</button>
               </div>
             </td>
           </tr>
-        `
-					)
-					.join("");
-			} else {
-				tbody.innerHTML = `
+        `,
+          )
+          .join("")
+      } else {
+        tbody.innerHTML = `
           <tr>
             <td colspan="7">
               <div class="empty-state">
@@ -261,218 +296,209 @@ class StaffsPage {
               </div>
             </td>
           </tr>
-        `;
-			}
-		} catch (error) {
-			console.error("Error loading staffs:", error);
-			alert("Failed to load staff members");
-		}
-	}
+        `
+      }
+    } catch (error) {
+      console.error("Error loading staffs:", error)
+      alert("Failed to load staff members")
+    }
+  }
 
-	openModal(staff = null) {
-		this.currentEditId = staff ? staff.id : null;
-		const modal = document.getElementById("staffModal");
-		const title = document.getElementById("staffModalTitle");
-		const form = document.getElementById("staffForm");
+  openModal(staff = null) {
+    this.currentEditId = staff ? staff.id : null
+    this.selectedAllowances = []
+    this.selectedDeductions = []
+    const modal = document.getElementById("staffModal")
+    const title = document.getElementById("staffModalTitle")
+    const form = document.getElementById("staffForm")
 
-		title.textContent = staff ? "Edit Staff" : "Add New Staff";
-		form.reset();
+    title.textContent = staff ? "Edit Staff" : "Add New Staff"
+    form.reset()
 
-		if (staff) {
-			document.getElementById("staffNumber").value = staff.staff_number;
-			document.getElementById("firstName").value = staff.first_name;
-			document.getElementById("lastName").value = staff.last_name;
-			document.getElementById("otherNames").value = staff.other_names || "";
-			document.getElementById("ssnit").value = staff.ssnit || "";
-			document.getElementById("ghanacard").value = staff.ghana_card || "";
-			document.getElementById("departmentId").value = staff.department_id || "";
-			document.getElementById("designationId").value =
-				staff.designation_id || "";
-			document.getElementById("status").value = staff.status || "";
-			document.getElementById("basicSalary").value = staff.basic_salary;
-			document.getElementById("dateHired").value = staff.hire_date || "";
-			document.getElementById("bankName").value = staff.bank_name || "";
-			document.getElementById("accountNumber").value =
-				staff.account_number || "";
-		}
+    if (staff) {
+      document.getElementById("staffNumber").value = staff.staff_number
+      document.getElementById("firstName").value = staff.first_name
+      document.getElementById("lastName").value = staff.last_name
+      document.getElementById("otherNames").value = staff.other_names || ""
+      document.getElementById("ssnit").value = staff.ssnit || ""
+      document.getElementById("ghanacard").value = staff.ghana_card || ""
+      document.getElementById("departmentId").value = staff.department_id || ""
+      document.getElementById("designationId").value = staff.designation_id || ""
+      document.getElementById("status").value = staff.status || ""
+      document.getElementById("basicSalary").value = staff.basic_salary
+      document.getElementById("dateHired").value = staff.hire_date || ""
+      document.getElementById("bankName").value = staff.bank_name || ""
+      document.getElementById("accountNumber").value = staff.account_number || ""
 
-		modal.classList.add("active");
-	}
+      if (staff.allowances && Array.isArray(staff.allowances)) {
+        this.selectedAllowances = staff.allowances.map((a) => a.id)
+        staff.allowances.forEach((a) => {
+          const checkbox = document.querySelector(`.allowance-checkbox[value="${a.id}"]`)
+          if (checkbox) checkbox.checked = true
+        })
+      }
 
-	closeModal() {
-		document.getElementById("staffModal").classList.remove("active");
-		this.currentEditId = null;
-	}
+      if (staff.deductions && Array.isArray(staff.deductions)) {
+        this.selectedDeductions = staff.deductions.map((d) => d.id)
+        staff.deductions.forEach((d) => {
+          const checkbox = document.querySelector(`.deduction-checkbox[value="${d.id}"]`)
+          if (checkbox) checkbox.checked = true
+        })
+      }
+    }
 
-	async saveStaff() {
-		const staffNumber = document.getElementById("staffNumber").value.trim();
-		const firstName = document.getElementById("firstName").value.trim();
-		const lastName = document.getElementById("lastName").value.trim();
-		const otherNames = document.getElementById("otherNames").value.trim();
-		const ssnit = document.getElementById("ssnit").value.trim();
-		const ghanacard = document.getElementById("ghanacard").value.trim();
-		const departmentId = document.getElementById("departmentId").value;
-		const designationId = document.getElementById("designationId").value;
-		const status = document.getElementById("status").value;
-		const basicSalary = document.getElementById("basicSalary").value;
-		const hireDate = document.getElementById("dateHired").value;
-		const bankName = document.getElementById("bankName").value.trim();
-		const accountNumber = document.getElementById("accountNumber").value.trim();
+    modal.classList.add("active")
+  }
 
-		if (
-			!staffNumber ||
-			!firstName ||
-			!lastName ||
-			!ssnit ||
-			!ghanacard ||
-			!departmentId ||
-			!designationId ||
-			!status ||
-			!basicSalary
-		) {
-			this.crudManager.showMessage(
-				"Please fill in all required fields",
-				"error"
-			);
-			return;
-		}
+  closeModal() {
+    document.getElementById("staffModal").classList.remove("active")
+    this.currentEditId = null
+    this.selectedAllowances = []
+    this.selectedDeductions = []
+  }
 
-		const data = {
-			staff_number: staffNumber,
-			first_name: firstName,
-			last_name: lastName,
-			other_names: otherNames || null,
-			ssnit: ssnit,
-			ghanacard: ghanacard,
-			department_id: Number.parseInt(departmentId),
-			designation_id: Number.parseInt(designationId),
-			status: status,
-			basic_salary: Number.parseFloat(basicSalary),
-			hire_date: hireDate || null,
-			bank_name: bankName || null,
-			account_number: accountNumber || null,
-		};
+  async saveStaff() {
+    const staffNumber = document.getElementById("staffNumber").value.trim()
+    const firstName = document.getElementById("firstName").value.trim()
+    const lastName = document.getElementById("lastName").value.trim()
+    const otherNames = document.getElementById("otherNames").value.trim()
+    const ssnit = document.getElementById("ssnit").value.trim()
+    const ghanacard = document.getElementById("ghanacard").value.trim()
+    const departmentId = document.getElementById("departmentId").value
+    const designationId = document.getElementById("designationId").value
+    const status = document.getElementById("status").value
+    const basicSalary = document.getElementById("basicSalary").value
+    const hireDate = document.getElementById("dateHired").value
+    const bankName = document.getElementById("bankName").value.trim()
+    const accountNumber = document.getElementById("accountNumber").value.trim()
 
-		try {
-			const response = await this.crudManager.save(data, this.currentEditId);
-			if (response.success) {
-				this.crudManager.showMessage(
-					this.currentEditId
-						? "Staff updated successfully!"
-						: "Staff created successfully!",
-					"success"
-				);
-				this.closeModal();
-				await this.loadStaffs();
-			} else {
-				this.crudManager.showMessage(
-					response.message || "An error occurred while saving the staff",
-					"error"
-				);
-			}
-		} catch (error) {
-			console.error("[v0] Error saving staff:", error);
-			this.crudManager.showMessage(
-				"An error occurred while saving the staff",
-				"error"
-			);
-		}
-	}
+    if (
+      !staffNumber ||
+      !firstName ||
+      !lastName ||
+      !ssnit ||
+      !ghanacard ||
+      !departmentId ||
+      !designationId ||
+      !status ||
+      !basicSalary
+    ) {
+      this.crudManager.showMessage("Please fill in all required fields", "error")
+      return
+    }
 
-	async editStaff(id) {
-		try {
-			const response = await this.crudManager.getById(id);
-			if (response.success && response.data) {
-				this.openModal(response.data);
-			} else {
-				this.crudManager.showMessage("Failed to load staff details", "error");
-			}
-		} catch (error) {
-			console.error("[v0] Error loading staff:", error);
-			this.crudManager.showMessage("Failed to load staff details", "error");
-		}
-	}
+    const selectedAllowances = Array.from(document.querySelectorAll(".allowance-checkbox:checked")).map((cb) =>
+      Number.parseInt(cb.value),
+    )
 
-	async archiveStaff(id) {
-		if (!confirm("Are you sure you want to archive this staff member?")) return;
+    const selectedDeductions = Array.from(document.querySelectorAll(".deduction-checkbox:checked")).map((cb) =>
+      Number.parseInt(cb.value),
+    )
 
-		try {
-			const response = await this.crudManager.archive(id, true);
-			if (response.success) {
-				this.crudManager.showMessage("Staff archived successfully", "success");
-				await this.loadStaffs();
-			} else {
-				this.crudManager.showMessage(
-					response.message || "Failed to archive staff",
-					"error"
-				);
-			}
-		} catch (error) {
-			console.error("[v0] Error archiving staff:", error);
-			this.crudManager.showMessage(
-				"An error occurred while archiving the staff",
-				"error"
-			);
-		}
-	}
+    const data = {
+      staff_number: staffNumber,
+      first_name: firstName,
+      last_name: lastName,
+      other_names: otherNames || null,
+      ssnit: ssnit,
+      ghanacard: ghanacard,
+      department_id: Number.parseInt(departmentId),
+      designation_id: Number.parseInt(designationId),
+      status: status,
+      basic_salary: Number.parseFloat(basicSalary),
+      hire_date: hireDate || null,
+      bank_name: bankName || null,
+      account_number: accountNumber || null,
+      allowances: selectedAllowances,
+      deductions: selectedDeductions,
+    }
 
-	async unarchiveStaff(id) {
-		try {
-			const response = await this.crudManager.archive(id, false);
-			if (response.success) {
-				this.crudManager.showMessage(
-					"Staff unarchived successfully",
-					"success"
-				);
-				await this.loadStaffs();
-			} else {
-				this.crudManager.showMessage(
-					response.message || "Failed to unarchive staff",
-					"error"
-				);
-			}
-		} catch (error) {
-			console.error("[v0] Error unarchiving staff:", error);
-			this.crudManager.showMessage(
-				"An error occurred while unarchiving the staff",
-				"error"
-			);
-		}
-	}
+    try {
+      const response = await this.crudManager.save(data, this.currentEditId)
+      if (response.success) {
+        this.crudManager.showMessage(
+          this.currentEditId ? "Staff updated successfully!" : "Staff created successfully!",
+          "success",
+        )
+        this.closeModal()
+        await this.loadStaffs()
+      } else {
+        this.crudManager.showMessage(response.message || "An error occurred while saving the staff", "error")
+      }
+    } catch (error) {
+      console.error("[v0] Error saving staff:", error)
+      this.crudManager.showMessage("An error occurred while saving the staff", "error")
+    }
+  }
 
-	async deleteStaff(id) {
-		if (
-			!confirm(
-				"Are you sure you want to permanently delete this staff member? This action cannot be undone."
-			)
-		)
-			return;
+  async editStaff(id) {
+    try {
+      const response = await this.crudManager.getById(id)
+      if (response.success && response.data) {
+        this.openModal(response.data)
+      } else {
+        this.crudManager.showMessage("Failed to load staff details", "error")
+      }
+    } catch (error) {
+      console.error("[v0] Error loading staff:", error)
+      this.crudManager.showMessage("Failed to load staff details", "error")
+    }
+  }
 
-		try {
-			const response = await this.crudManager.delete(id);
-			if (response.success) {
-				this.crudManager.showMessage("Staff deleted successfully", "success");
-				await this.loadStaffs();
-			} else {
-				this.crudManager.showMessage(
-					response.message || "Failed to delete staff",
-					"error"
-				);
-			}
-		} catch (error) {
-			console.error("[v0] Error deleting staff:", error);
-			this.crudManager.showMessage(
-				"An error occurred while deleting the staff",
-				"error"
-			);
-		}
-	}
+  async archiveStaff(id) {
+    if (!confirm("Are you sure you want to archive this staff member?")) return
 
-	async init() {
-		await this.loadDepartmentsAndDesignations();
-		this.attachEventListeners();
-		await this.loadStaffs();
-	}
+    try {
+      const response = await this.crudManager.archive(id, true)
+      if (response.success) {
+        this.crudManager.showMessage("Staff archived successfully", "success")
+        await this.loadStaffs()
+      } else {
+        this.crudManager.showMessage(response.message || "Failed to archive staff", "error")
+      }
+    } catch (error) {
+      console.error("[v0] Error archiving staff:", error)
+      this.crudManager.showMessage("An error occurred while archiving the staff", "error")
+    }
+  }
+
+  async unarchiveStaff(id) {
+    try {
+      const response = await this.crudManager.archive(id, false)
+      if (response.success) {
+        this.crudManager.showMessage("Staff unarchived successfully", "success")
+        await this.loadStaffs()
+      } else {
+        this.crudManager.showMessage(response.message || "Failed to unarchive staff", "error")
+      }
+    } catch (error) {
+      console.error("[v0] Error unarchiving staff:", error)
+      this.crudManager.showMessage("An error occurred while unarchiving the staff", "error")
+    }
+  }
+
+  async deleteStaff(id) {
+    if (!confirm("Are you sure you want to permanently delete this staff member? This action cannot be undone.")) return
+
+    try {
+      const response = await this.crudManager.delete(id)
+      if (response.success) {
+        this.crudManager.showMessage("Staff deleted successfully", "success")
+        await this.loadStaffs()
+      } else {
+        this.crudManager.showMessage(response.message || "Failed to delete staff", "error")
+      }
+    } catch (error) {
+      console.error("[v0] Error deleting staff:", error)
+      this.crudManager.showMessage("An error occurred while deleting the staff", "error")
+    }
+  }
+
+  async init() {
+    await this.loadDepartmentsAndDesignations()
+    this.attachEventListeners()
+    await this.loadStaffs()
+  }
 }
 
-window.staffsPage = new StaffsPage();
+window.staffsPage = new StaffsPage()

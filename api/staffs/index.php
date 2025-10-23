@@ -26,6 +26,24 @@ try {
 
             $data = $stmt->fetch();
 
+            if ($data) {
+                $allowancesQuery = "SELECT a.* FROM allowances a
+                                   INNER JOIN staff_allowances sa ON a.id = sa.allowance_id
+                                   WHERE sa.staff_id = :staff_id AND a.is_archived = 0";
+                $allowancesStmt = $db->prepare($allowancesQuery);
+                $allowancesStmt->bindParam(':staff_id', $data['id']);
+                $allowancesStmt->execute();
+                $data['allowances'] = $allowancesStmt->fetchAll();
+
+                $deductionsQuery = "SELECT d.* FROM deductions d
+                                   INNER JOIN staff_deductions sd ON d.id = sd.deduction_id
+                                   WHERE sd.staff_id = :staff_id AND d.is_archived = 0";
+                $deductionsStmt = $db->prepare($deductionsQuery);
+                $deductionsStmt->bindParam(':staff_id', $data['id']);
+                $deductionsStmt->execute();
+                $data['deductions'] = $deductionsStmt->fetchAll();
+            }
+
             http_response_code(200);
             echo json_encode([
                 'success' => true,
@@ -42,6 +60,24 @@ try {
             $stmt->execute();
 
             $data = $stmt->fetch();
+
+            if ($data) {
+                $allowancesQuery = "SELECT a.* FROM allowances a
+                                   INNER JOIN staff_allowances sa ON a.id = sa.allowance_id
+                                   WHERE sa.staff_id = :staff_id AND a.is_archived = 0";
+                $allowancesStmt = $db->prepare($allowancesQuery);
+                $allowancesStmt->bindParam(':staff_id', $data['id']);
+                $allowancesStmt->execute();
+                $data['allowances'] = $allowancesStmt->fetchAll();
+
+                $deductionsQuery = "SELECT d.* FROM deductions d
+                                   INNER JOIN staff_deductions sd ON d.id = sd.deduction_id
+                                   WHERE sd.staff_id = :staff_id AND d.is_archived = 0";
+                $deductionsStmt = $db->prepare($deductionsQuery);
+                $deductionsStmt->bindParam(':staff_id', $data['id']);
+                $deductionsStmt->execute();
+                $data['deductions'] = $deductionsStmt->fetchAll();
+            }
 
             http_response_code(200);
             echo json_encode([
@@ -113,19 +149,40 @@ try {
         $stmt->bindParam(':hire_date', $data->hire_date);
 
         if ($stmt->execute()) {
+            $staffId = $db->lastInsertId();
+
+            if (isset($data->allowances) && is_array($data->allowances)) {
+                $allowanceQuery = "INSERT INTO staff_allowances (staff_id, allowance_id) VALUES (:staff_id, :allowance_id)";
+                $allowanceStmt = $db->prepare($allowanceQuery);
+                foreach ($data->allowances as $allowanceId) {
+                    $allowanceStmt->bindParam(':staff_id', $staffId);
+                    $allowanceStmt->bindParam(':allowance_id', $allowanceId);
+                    $allowanceStmt->execute();
+                }
+            }
+
+            if (isset($data->deductions) && is_array($data->deductions)) {
+                $deductionQuery = "INSERT INTO staff_deductions (staff_id, deduction_id) VALUES (:staff_id, :deduction_id)";
+                $deductionStmt = $db->prepare($deductionQuery);
+                foreach ($data->deductions as $deductionId) {
+                    $deductionStmt->bindParam(':staff_id', $staffId);
+                    $deductionStmt->bindParam(':deduction_id', $deductionId);
+                    $deductionStmt->execute();
+                }
+            }
+
             $logQuery = "INSERT INTO audit_logs (user_id, action, table_name, record_id) 
                          VALUES (:user_id, 'CREATE', 'staffs', :record_id)";
             $logStmt = $db->prepare($logQuery);
             $logStmt->bindParam(':user_id', $user->user_id);
-            $newId = $db->lastInsertId();
-            $logStmt->bindParam(':record_id', $newId);
+            $logStmt->bindParam(':record_id', $staffId);
             $logStmt->execute();
 
             http_response_code(201);
             echo json_encode([
                 'success' => true,
                 'message' => 'Staff created successfully',
-                'id' => $newId
+                'id' => $staffId
             ]);
         } else {
             http_response_code(500);
@@ -190,6 +247,40 @@ try {
             $stmt->bindParam(':basic_salary', $data->basic_salary);
             $stmt->bindParam(':hire_date', $data->hire_date);
             $action = 'UPDATE';
+
+            if (isset($data->allowances)) {
+                $deleteAllowanceQuery = "DELETE FROM staff_allowances WHERE staff_id = :staff_id";
+                $deleteAllowanceStmt = $db->prepare($deleteAllowanceQuery);
+                $deleteAllowanceStmt->bindParam(':staff_id', $data->id);
+                $deleteAllowanceStmt->execute();
+
+                if (is_array($data->allowances) && count($data->allowances) > 0) {
+                    $allowanceQuery = "INSERT INTO staff_allowances (staff_id, allowance_id) VALUES (:staff_id, :allowance_id)";
+                    $allowanceStmt = $db->prepare($allowanceQuery);
+                    foreach ($data->allowances as $allowanceId) {
+                        $allowanceStmt->bindParam(':staff_id', $data->id);
+                        $allowanceStmt->bindParam(':allowance_id', $allowanceId);
+                        $allowanceStmt->execute();
+                    }
+                }
+            }
+
+            if (isset($data->deductions)) {
+                $deleteDeductionQuery = "DELETE FROM staff_deductions WHERE staff_id = :staff_id";
+                $deleteDeductionStmt = $db->prepare($deleteDeductionQuery);
+                $deleteDeductionStmt->bindParam(':staff_id', $data->id);
+                $deleteDeductionStmt->execute();
+
+                if (is_array($data->deductions) && count($data->deductions) > 0) {
+                    $deductionQuery = "INSERT INTO staff_deductions (staff_id, deduction_id) VALUES (:staff_id, :deduction_id)";
+                    $deductionStmt = $db->prepare($deductionQuery);
+                    foreach ($data->deductions as $deductionId) {
+                        $deductionStmt->bindParam(':staff_id', $data->id);
+                        $deductionStmt->bindParam(':deduction_id', $deductionId);
+                        $deductionStmt->execute();
+                    }
+                }
+            }
         }
 
         if ($stmt->execute()) {
