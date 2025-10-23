@@ -624,16 +624,35 @@ function setupPayrollEventListeners(payrollManager) {
       return
     }
 
-    const staff = await payrollManager.searchStaff(staffNumber)
+    try {
+      const response = await window.ApiService.get(
+        window.API_ENDPOINTS.PAYROLL_STAFF_SEARCH + `?staff_number=${staffNumber}`,
+      )
 
-    if (staff) {
-      displayStaffDetails(staff, payrollManager)
-      await loadAllowancesAndDeductions(payrollManager)
-      // Hide bonded allowances initially based on default value of isBonded select
-      hideBondedAllowances(payrollManager)
-      calculateAndDisplaySummary(payrollManager)
-    } else {
-      alert("Staff not found")
+      if (response.success && response.data) {
+        const staff = response.data.staff
+        const allowances = response.data.allowances
+        const deductions = response.data.deductions
+        const currencyRate = response.data.currency_rate
+
+        // Store currency rate in payroll manager
+        payrollManager.currencyRate = currencyRate
+
+        displayStaffDetails(staff, payrollManager)
+
+        displayAllowancesWithApplicable(allowances, payrollManager)
+        displayDeductionsWithApplicable(deductions, payrollManager)
+
+        // Hide bonded allowances based on staff bonded status
+        hideBondedAllowances(payrollManager)
+
+        calculateAndDisplaySummary(payrollManager)
+      } else {
+        alert(response.message || "Staff not found")
+      }
+    } catch (error) {
+      alert("Error searching for staff")
+      console.error(error)
     }
   })
 
@@ -775,36 +794,59 @@ function displayAllowances(allowances, payrollManager) {
   }
 }
 
-function hideBondedAllowances(payrollManager) {
-  const isBonded = document.getElementById("isBonded").value === "1"
+function displayAllowancesWithApplicable(allowances, payrollManager) {
+  const container = document.getElementById("allowancesList")
+  container.innerHTML = allowances
+    .map(
+      (allowance) => `
+    <div style="display: flex; align-items: center; gap: 12px; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px;">
+      <input type="checkbox" id="allow_${allowance.id}" data-id="${
+        allowance.id
+      }" class="allowance-checkbox" data-is-bonded="${allowance.is_bonded ? 1 : 0}" ${allowance.is_applicable ? "checked" : ""}>
+      <label for="allow_${allowance.id}" style="flex: 1; margin: 0;">${allowance.allowance_name}</label>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <input type="number" id="allow_amount_${allowance.id}" placeholder="${
+          allowance.is_percentage ? "%" : "Amount"
+        }" 
+               step="0.01" min="0" value="${allowance.default_amount}" 
+               style="width: 100px;" ${allowance.is_applicable ? "" : "disabled"}>
+        <span style="font-size: 12px; color: #64748b;">${allowance.is_percentage ? "%" : "USD"}</span>
+      </div>
+    </div>
+  `,
+    )
+    .join("")
 
+  // Add event listeners for allowance checkboxes
   document.querySelectorAll(".allowance-checkbox").forEach((checkbox) => {
-    const isBondedAllowance = checkbox.dataset.isBonded === "1"
-    const allowanceContainer = checkbox.closest("div")
-    const amountInput = document.getElementById(`allow_amount_${checkbox.dataset.id}`)
-
-    if (isBonded && isBondedAllowance) {
-      // Hide bonded allowances when staff is bonded
-      checkbox.checked = false
-      checkbox.disabled = true
-      amountInput.value = ""
-      amountInput.disabled = true
-      allowanceContainer.style.opacity = "0.5"
-      allowanceContainer.style.pointerEvents = "none"
-    } else {
-      // Show all allowances when staff is not bonded
-      checkbox.disabled = false
-      allowanceContainer.style.opacity = "1"
-      allowanceContainer.style.pointerEvents = "auto"
-      // Keep the amount input disabled unless checkbox is checked
-      if (!checkbox.checked) {
-        amountInput.disabled = true
+    checkbox.addEventListener("change", (e) => {
+      const amountInput = document.getElementById(`allow_amount_${e.target.dataset.id}`)
+      amountInput.disabled = !e.target.checked
+      if (!e.target.checked) {
+        amountInput.value = "" // Clear value when unchecked
       }
-    }
+      calculateAndDisplaySummary(payrollManager)
+    })
   })
 
-  // Recalculate summary after hiding/showing allowances
-  calculateAndDisplaySummary(payrollManager)
+  // Add event listeners for allowance amount inputs
+  document.querySelectorAll('[id^="allow_amount_"]').forEach((input) => {
+    input.addEventListener("input", () => {
+      calculateAndDisplaySummary(payrollManager)
+    })
+  })
+
+  const isBondedSelect = document.getElementById("isBonded")
+  if (isBondedSelect) {
+    // Remove any existing event listeners by cloning the element
+    const newIsBondedSelect = isBondedSelect.cloneNode(true)
+    isBondedSelect.parentNode.replaceChild(newIsBondedSelect, isBondedSelect)
+
+    // Add the event listener to the new element
+    newIsBondedSelect.addEventListener("change", () => {
+      hideBondedAllowances(payrollManager)
+    })
+  }
 }
 
 function displayDeductions(deductions, payrollManager) {
@@ -845,6 +887,78 @@ function displayDeductions(deductions, payrollManager) {
       calculateAndDisplaySummary(payrollManager)
     })
   })
+}
+
+function displayDeductionsWithApplicable(deductions, payrollManager) {
+  const container = document.getElementById("deductionsList")
+  container.innerHTML = deductions
+    .map(
+      (deduction) => `
+    <div style="display: flex; align-items: center; gap: 12px; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px;">
+      <input type="checkbox" id="deduct_${deduction.id}" data-id="${deduction.id}" class="deduction-checkbox" ${deduction.is_applicable ? "checked" : ""}>
+      <label for="deduct_${deduction.id}" style="flex: 1; margin: 0;">${deduction.deduction_name}</label>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <input type="number" id="deduct_amount_${deduction.id}" placeholder="${
+          deduction.is_percentage ? "%" : "Amount"
+        }" 
+               step="0.01" min="0" value="${deduction.default_amount}" 
+               style="width: 100px;" ${deduction.is_applicable ? "" : "disabled"}>
+        <span style="font-size: 12px; color: #64748b;">${deduction.is_percentage ? "%" : "USD"}</span>
+      </div>
+    </div>
+  `,
+    )
+    .join("")
+
+  // Add event listeners
+  document.querySelectorAll(".deduction-checkbox").forEach((checkbox) => {
+    checkbox.addEventListener("change", (e) => {
+      const amountInput = document.getElementById(`deduct_amount_${e.target.dataset.id}`)
+      amountInput.disabled = !e.target.checked
+      if (!e.target.checked) {
+        amountInput.value = "" // Clear value when unchecked
+      }
+      calculateAndDisplaySummary(payrollManager)
+    })
+  })
+
+  document.querySelectorAll('[id^="deduct_amount_"]').forEach((input) => {
+    input.addEventListener("input", () => {
+      calculateAndDisplaySummary(payrollManager)
+    })
+  })
+}
+
+function hideBondedAllowances(payrollManager) {
+  const isBonded = document.getElementById("isBonded").value === "1"
+
+  document.querySelectorAll(".allowance-checkbox").forEach((checkbox) => {
+    const isBondedAllowance = checkbox.dataset.isBonded === "1"
+    const allowanceContainer = checkbox.closest("div")
+    const amountInput = document.getElementById(`allow_amount_${checkbox.dataset.id}`)
+
+    if (isBonded && isBondedAllowance) {
+      // Hide bonded allowances when staff is bonded
+      checkbox.checked = false
+      checkbox.disabled = true
+      amountInput.value = ""
+      amountInput.disabled = true
+      allowanceContainer.style.opacity = "0.5"
+      allowanceContainer.style.pointerEvents = "none"
+    } else {
+      // Show all allowances when staff is not bonded
+      checkbox.disabled = false
+      allowanceContainer.style.opacity = "1"
+      allowanceContainer.style.pointerEvents = "auto"
+      // Keep the amount input disabled unless checkbox is checked
+      if (!checkbox.checked) {
+        amountInput.disabled = true
+      }
+    }
+  })
+
+  // Recalculate summary after hiding/showing allowances
+  calculateAndDisplaySummary(payrollManager)
 }
 
 function calculateAndDisplaySummary(payrollManager) {
