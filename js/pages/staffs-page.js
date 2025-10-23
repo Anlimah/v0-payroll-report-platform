@@ -12,7 +12,7 @@ class StaffsPage {
 		this.deductions = [];
 		this.selectedAllowances = [];
 		this.selectedDeductions = [];
-		this.currentStep = 1;
+		this.currentStep = 0;
 	}
 
 	render() {
@@ -448,6 +448,7 @@ class StaffsPage {
 		}
 
 		modal.classList.add("active");
+		console.log("Step", this.currentStep, "from openModal");
 		this.updateStepDisplay();
 	}
 
@@ -456,7 +457,7 @@ class StaffsPage {
 		this.currentEditId = null;
 		this.selectedAllowances = [];
 		this.selectedDeductions = [];
-		this.currentStep = 1;
+		this.currentStep = 0;
 	}
 
 	nextStep() {
@@ -492,6 +493,7 @@ class StaffsPage {
 
 		if (this.currentStep < 3) {
 			this.currentStep++;
+			console.log("Step", this.currentStep, "from nextStep");
 			this.updateStepDisplay();
 		}
 	}
@@ -499,11 +501,13 @@ class StaffsPage {
 	previousStep() {
 		if (this.currentStep > 1) {
 			this.currentStep--;
+			console.log("Step", this.currentStep, "from previousStep");
 			this.updateStepDisplay();
 		}
 	}
 
 	updateStepDisplay() {
+		console.log("Step", this.currentStep, "from updateStepDisplay");
 		document.getElementById("step1").style.display = "none";
 		document.getElementById("step2").style.display = "none";
 		document.getElementById("step3").style.display = "none";
@@ -596,7 +600,7 @@ class StaffsPage {
 				);
 				this.closeModal();
 				await this.loadStaffs();
-			} else {    
+			} else {
 				this.crudManager.showMessage(
 					response.message || "An error occurred while saving the staff",
 					"error"

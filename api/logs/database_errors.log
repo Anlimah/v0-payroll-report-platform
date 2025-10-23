@@ -9,3 +9,25 @@ Stack Trace:
 #0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(70): PDOStatement->execute()
 #1 {main}
 ================================================================================
+
+================================================================================
+[2025-10-23 19:26:07] ERROR
+Message: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'ICT001' for key 'staff_number'
+File: C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php
+Line: 151
+Context: {"query":"INSERT INTO staffs (`staff_number`, `first_name`, `last_name`, `other_names`, `ssnit`, `ghana_card`, \r\n                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `hire_date`) \r\n                  VALUES (:staff_number, :first_name, :last_name, :other_names, :ssnit, :ghanacard, \r\n                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :hire_date)","params":{"method":"POST","endpoint":"staffs","staff_number":"N\/A"},"type":"DATABASE_ERROR"}
+Stack Trace:
+#0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(151): PDOStatement->execute()
+#1 {main}
+================================================================================
+
+================================================================================
+[2025-10-23 19:26:18] ERROR
+Message: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'ICT002' for key 'staff_number'
+File: C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php
+Line: 151
+Context: {"query":"INSERT INTO staffs (`staff_number`, `first_name`, `last_name`, `other_names`, `ssnit`, `ghana_card`, \r\n                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `hire_date`) \r\n                  VALUES (:staff_number, :first_name, :last_name, :other_names, :ssnit, :ghanacard, \r\n                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :hire_date)","params":{"method":"POST","endpoint":"staffs","staff_number":"N\/A"},"type":"DATABASE_ERROR"}
+Stack Trace:
+#0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(151): PDOStatement->execute()
+#1 {main}
+================================================================================
