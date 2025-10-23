@@ -596,7 +596,7 @@ class StaffsPage {
 				);
 				this.closeModal();
 				await this.loadStaffs();
-			} else {
+			} else {    
 				this.crudManager.showMessage(
 					response.message || "An error occurred while saving the staff",
 					"error"
