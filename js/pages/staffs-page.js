@@ -488,12 +488,12 @@ class StaffsPage {
 				);
 				return;
 			}
+			this.currentStep++;
+		} else if (this.currentStep < 3) {
+			this.currentStep++;
 		}
 
-		if (this.currentStep < 3) {
-			this.currentStep++;
-			this.updateStepDisplay();
-		}
+		this.updateStepDisplay();
 	}
 
 	previousStep() {
@@ -517,13 +517,12 @@ class StaffsPage {
 		document.getElementById("saveStaffBtn").style.display =
 			this.currentStep === 3 ? "inline-block" : "none";
 
-		for (let i = 1; i <= 3; i++) {
-			const stepIndicators = document.querySelectorAll(".step-indicator");
-			if (stepIndicators[i - 1]) {
-				stepIndicators[i - 1].style.background =
-					i <= this.currentStep ? "#007bff" : "#e0e0e0";
-			}
-		}
+		const stepIndicators = document.querySelectorAll(".step-indicator");
+		stepIndicators.forEach((indicator, index) => {
+			const stepNumber = index + 1;
+			indicator.style.background =
+				stepNumber <= this.currentStep ? "#007bff" : "#e0e0e0";
+		});
 	}
 
 	async saveStaff() {
