@@ -1,14 +1,16 @@
 <?php
 include_once __DIR__ . '/error-logger.php';
 
-class Database {
+class Database
+{
     private $host = "localhost";
     private $db_name = "payroll_system";
     private $username = "root";
     private $password = "";
     private $conn;
 
-    public function getConnection() {
+    public function getConnection()
+    {
         $this->conn = null;
 
         try {
@@ -19,9 +21,9 @@ class Database {
             );
             $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $this->conn->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-        } catch(PDOException $e) {
+        } catch (PDOException $e) {
             ErrorLogger::logDatabaseError($e, 'Database Connection');
-            
+
             echo json_encode([
                 'success' => false,
                 'message' => 'Connection Error: ' . $e->getMessage()
@@ -32,4 +34,3 @@ class Database {
         return $this->conn;
     }
 }
-?>

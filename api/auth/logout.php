@@ -28,7 +28,7 @@ try {
         'endpoint' => 'auth/logout',
         'user_id' => $user->user_id ?? 'unknown'
     ]);
-    
+
     http_response_code(500);
     echo json_encode([
         'success' => false,
@@ -38,11 +38,10 @@ try {
     ErrorLogger::logError($e, [
         'endpoint' => 'auth/logout'
     ]);
-    
+
     http_response_code(500);
     echo json_encode([
         'success' => false,
         'message' => 'An unexpected error occurred'
     ]);
 }
-?>
