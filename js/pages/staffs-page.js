@@ -9,6 +9,7 @@ class StaffsPage {
     this.deductions = []
     this.selectedAllowances = []
     this.selectedDeductions = []
+    this.currentStep = 1
   }
 
   render() {
@@ -47,7 +48,7 @@ class StaffsPage {
         </div>
       </div>
 
-      <!-- Staff Modal -->
+      <!-- Staff Modal with Multi-Step Form -->
       <div class="modal" id="staffModal">
         <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
           <div class="modal-header">
@@ -55,106 +56,133 @@ class StaffsPage {
             <button class="modal-close" id="closeStaffModal">&times;</button>
           </div>
           <div class="modal-body">
+            <!-- Step Indicator -->
+            <div style="display: flex; justify-content: space-between; margin-bottom: 24px; align-items: center;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="step-indicator ${this.currentStep === 1 ? "active" : ""}" style="width: 40px; height: 40px; border-radius: 50%; background: ${this.currentStep === 1 ? "#007bff" : "#e0e0e0"}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;">1</div>
+                <span>Staff Details</span>
+              </div>
+              <div style="flex: 1; height: 2px; background: ${this.currentStep > 1 ? "#007bff" : "#e0e0e0"}; margin: 0 12px;"></div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="step-indicator ${this.currentStep === 2 ? "active" : ""}" style="width: 40px; height: 40px; border-radius: 50%; background: ${this.currentStep === 2 ? "#007bff" : "#e0e0e0"}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;">2</div>
+                <span>Allowances</span>
+              </div>
+              <div style="flex: 1; height: 2px; background: ${this.currentStep > 2 ? "#007bff" : "#e0e0e0"}; margin: 0 12px;"></div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="step-indicator ${this.currentStep === 3 ? "active" : ""}" style="width: 40px; height: 40px; border-radius: 50%; background: ${this.currentStep === 3 ? "#007bff" : "#e0e0e0"}; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;">3</div>
+                <span>Deductions</span>
+              </div>
+            </div>
+
             <form id="staffForm">
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Staff Number *</label>
-                  <input type="text" id="staffNumber" required placeholder="e.g., STF001">
+              <!-- Step 1: Staff Details -->
+              <div id="step1" class="form-step" style="display: ${this.currentStep === 1 ? "block" : "none"};">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Staff Number *</label>
+                    <input type="text" id="staffNumber" required placeholder="e.g., STF001">
+                  </div>
+                  <div class="form-group">
+                    <label>First Name *</label>
+                    <input type="text" id="firstName" required placeholder="John">
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label>First Name *</label>
-                  <input type="text" id="firstName" required placeholder="John">
+                
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Last Name *</label>
+                    <input type="text" id="lastName" required placeholder="Doe">
+                  </div>
+                  <div class="form-group">
+                    <label>Other Names</label>
+                    <input type="text" id="otherNames" placeholder="Middle name(s)">
+                  </div>
                 </div>
-              </div>
-              
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Last Name *</label>
-                  <input type="text" id="lastName" required placeholder="Doe">
+                
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>SSNIT</label>
+                    <input type="text" id="ssnit" placeholder="SSNIT Number">
+                  </div>
+                  <div class="form-group">
+                    <label>Ghana Card Number</label>
+                    <input type="text" id="ghanacard" placeholder="GHA-XXXX-XXXX-XXXX">
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label>Other Names</label>
-                  <input type="text" id="otherNames" placeholder="Middle name(s)">
+                
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Department *</label>
+                    <select id="departmentId" required>
+                      <option value="">Select Department</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Designation *</label>
+                    <select id="designationId" required>
+                      <option value="">Select Designation</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
-              
-              <div class="form-row">
+                
                 <div class="form-group">
-                  <label>SSNIT</label>
-                  <input type="text" id="ssnit" placeholder="SSNIT Number">
-                </div>
-                <div class="form-group">
-                  <label>Ghana Card Number</label>
-                  <input type="text" id="ghanacard" placeholder="GHA-XXXX-XXXX-XXXX">
-                </div>
-              </div>
-              
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Department *</label>
-                  <select id="departmentId" required>
-                    <option value="">Select Department</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Designation *</label>
-                  <select id="designationId" required>
-                    <option value="">Select Designation</option>
-                  </select>
-                </div>
-              </div>
-              
-                <div class="form-group">
-                    <label>Status *</label>
-                    <select id="status" required>
+                  <label>Status *</label>
+                  <select id="status" required>
                     <option value="">Select Status</option>
                     <option value="permanent">Permanent</option>
                     <option value="contract">Contract</option>
-                    </select>
+                  </select>
                 </div>
-              
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Basic Salary (USD) *</label>
-                  <input type="number" id="basicSalary" required step="0.01" min="0" placeholder="0.00">
+                
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Basic Salary (USD) *</label>
+                    <input type="number" id="basicSalary" required step="0.01" min="0" placeholder="0.00">
+                  </div>
+                  <div class="form-group">
+                    <label>Date Hired</label>
+                    <input type="date" id="dateHired">
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label>Date Hired</label>
-                  <input type="date" id="dateHired">
-                </div>
-              </div>
-              
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Bank Name</label>
-                  <input type="text" id="bankName" placeholder="e.g., GCB Bank">
-                </div>
-                <div class="form-group">
-                  <label>Account Number</label>
-                  <input type="text" id="accountNumber" placeholder="Bank account number">
-                </div>
-              </div>
-
-              <!-- Add allowances section -->
-              <div class="form-group">
-                <label style="font-weight: bold; margin-top: 20px; display: block;">Allowances</label>
-                <div id="allowancesContainer" style="border: 1px solid #ddd; padding: 12px; border-radius: 4px; max-height: 200px; overflow-y: auto;">
-                  <!-- Allowances will be populated here -->
+                
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Bank Name</label>
+                    <input type="text" id="bankName" placeholder="e.g., GCB Bank">
+                  </div>
+                  <div class="form-group">
+                    <label>Account Number</label>
+                    <input type="text" id="accountNumber" placeholder="Bank account number">
+                  </div>
                 </div>
               </div>
 
-              <!-- Add deductions section -->
-              <div class="form-group">
-                <label style="font-weight: bold; margin-top: 20px; display: block;">Deductions</label>
-                <div id="deductionsContainer" style="border: 1px solid #ddd; padding: 12px; border-radius: 4px; max-height: 200px; overflow-y: auto;">
-                  <!-- Deductions will be populated here -->
+              <!-- Step 2: Allowances -->
+              <div id="step2" class="form-step" style="display: ${this.currentStep === 2 ? "block" : "none"};">
+                <div class="form-group">
+                  <label style="font-weight: bold; margin-bottom: 16px; display: block;">Select Applicable Allowances</label>
+                  <div id="allowancesContainer" style="border: 1px solid #ddd; padding: 12px; border-radius: 4px; max-height: 300px; overflow-y: auto;">
+                    <!-- Allowances will be populated here -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 3: Deductions -->
+              <div id="step3" class="form-step" style="display: ${this.currentStep === 3 ? "block" : "none"};">
+                <div class="form-group">
+                  <label style="font-weight: bold; margin-bottom: 16px; display: block;">Select Applicable Deductions</label>
+                  <div id="deductionsContainer" style="border: 1px solid #ddd; padding: 12px; border-radius: 4px; max-height: 300px; overflow-y: auto;">
+                    <!-- Deductions will be populated here -->
+                  </div>
                 </div>
               </div>
             </form>
           </div>
           <div class="modal-footer">
             <button class="btn btn-secondary" id="cancelStaffBtn">Cancel</button>
-            <button class="btn btn-primary" id="saveStaffBtn">Save Staff</button>
+            <button class="btn btn-secondary" id="prevStaffBtn" style="display: ${this.currentStep > 1 ? "inline-block" : "none"};">Previous</button>
+            <button class="btn btn-primary" id="nextStaffBtn" style="display: ${this.currentStep < 3 ? "inline-block" : "none"};">Next</button>
+            <button class="btn btn-primary" id="saveStaffBtn" style="display: ${this.currentStep === 3 ? "inline-block" : "none"};">Save Staff</button>
           </div>
         </div>
       </div>
@@ -247,6 +275,8 @@ class StaffsPage {
     document.getElementById("closeStaffModal").addEventListener("click", () => this.closeModal())
     document.getElementById("cancelStaffBtn").addEventListener("click", () => this.closeModal())
     document.getElementById("saveStaffBtn").addEventListener("click", () => this.saveStaff())
+    document.getElementById("nextStaffBtn").addEventListener("click", () => this.nextStep())
+    document.getElementById("prevStaffBtn").addEventListener("click", () => this.previousStep())
     document.getElementById("showArchivedStaffs").addEventListener("change", (e) => {
       this.showArchived = e.target.checked
       this.loadStaffs()
@@ -308,6 +338,7 @@ class StaffsPage {
     this.currentEditId = staff ? staff.id : null
     this.selectedAllowances = []
     this.selectedDeductions = []
+    this.currentStep = 1
     const modal = document.getElementById("staffModal")
     const title = document.getElementById("staffModalTitle")
     const form = document.getElementById("staffForm")
@@ -348,6 +379,7 @@ class StaffsPage {
     }
 
     modal.classList.add("active")
+    this.updateStepDisplay()
   }
 
   closeModal() {
@@ -355,6 +387,67 @@ class StaffsPage {
     this.currentEditId = null
     this.selectedAllowances = []
     this.selectedDeductions = []
+    this.currentStep = 1
+  }
+
+  nextStep() {
+    if (this.currentStep === 1) {
+      const staffNumber = document.getElementById("staffNumber").value.trim()
+      const firstName = document.getElementById("firstName").value.trim()
+      const lastName = document.getElementById("lastName").value.trim()
+      const ssnit = document.getElementById("ssnit").value.trim()
+      const ghanacard = document.getElementById("ghanacard").value.trim()
+      const departmentId = document.getElementById("departmentId").value
+      const designationId = document.getElementById("designationId").value
+      const status = document.getElementById("status").value
+      const basicSalary = document.getElementById("basicSalary").value
+
+      if (
+        !staffNumber ||
+        !firstName ||
+        !lastName ||
+        !ssnit ||
+        !ghanacard ||
+        !departmentId ||
+        !designationId ||
+        !status ||
+        !basicSalary
+      ) {
+        this.crudManager.showMessage("Please fill in all required fields in Step 1", "error")
+        return
+      }
+    }
+
+    if (this.currentStep < 3) {
+      this.currentStep++
+      this.updateStepDisplay()
+    }
+  }
+
+  previousStep() {
+    if (this.currentStep > 1) {
+      this.currentStep--
+      this.updateStepDisplay()
+    }
+  }
+
+  updateStepDisplay() {
+    document.getElementById("step1").style.display = "none"
+    document.getElementById("step2").style.display = "none"
+    document.getElementById("step3").style.display = "none"
+
+    document.getElementById(`step${this.currentStep}`).style.display = "block"
+
+    document.getElementById("prevStaffBtn").style.display = this.currentStep > 1 ? "inline-block" : "none"
+    document.getElementById("nextStaffBtn").style.display = this.currentStep < 3 ? "inline-block" : "none"
+    document.getElementById("saveStaffBtn").style.display = this.currentStep === 3 ? "inline-block" : "none"
+
+    for (let i = 1; i <= 3; i++) {
+      const stepIndicators = document.querySelectorAll(".step-indicator")
+      if (stepIndicators[i - 1]) {
+        stepIndicators[i - 1].style.background = i <= this.currentStep ? "#007bff" : "#e0e0e0"
+      }
+    }
   }
 
   async saveStaff() {
