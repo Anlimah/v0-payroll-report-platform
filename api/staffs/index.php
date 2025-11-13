@@ -129,9 +129,9 @@ try {
         }
 
         $query = "INSERT INTO staffs (`staff_number`, `first_name`, `last_name`, `other_names`, `ssnit`, `ghana_card`, 
-                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `hire_date`) 
+                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `salary_currency`, `hire_date`, `on_bonded_or_study_leave`) 
                   VALUES (:staff_number, :first_name, :last_name, :other_names, :ssnit, :ghanacard, 
-                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :hire_date)";
+                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :salary_currency, :hire_date, :on_bonded_or_study_leave)";
         $stmt = $db->prepare($query);
 
         $stmt->bindParam(':staff_number', $data->staff_number);
@@ -146,7 +146,11 @@ try {
         $stmt->bindParam(':bank_name', $data->bank_name);
         $stmt->bindParam(':account_number', $data->account_number);
         $stmt->bindParam(':basic_salary', $data->basic_salary);
+        $salary_currency = ($data->status === 'permanent') ? 'USD' : 'GHS';
+        $stmt->bindParam(':salary_currency', $salary_currency);
         $stmt->bindParam(':hire_date', $data->hire_date);
+        $on_leave = isset($data->on_bonded_or_study_leave) ? $data->on_bonded_or_study_leave : FALSE;
+        $stmt->bindParam(':on_bonded_or_study_leave', $on_leave);
 
         if ($stmt->execute()) {
             $staffId = $db->lastInsertId();
@@ -154,20 +158,46 @@ try {
             if (isset($data->allowances) && is_array($data->allowances)) {
                 $allowanceQuery = "INSERT INTO staff_allowances (staff_id, allowance_id) VALUES (:staff_id, :allowance_id)";
                 $allowanceStmt = $db->prepare($allowanceQuery);
-                foreach ($data->allowances as $allowanceId) {
+                foreach ($data->allowances as $allowance) {
+                    $allowanceId = is_object($allowance) ? $allowance->id : $allowance;
+                    
                     $allowanceStmt->bindParam(':staff_id', $staffId);
                     $allowanceStmt->bindParam(':allowance_id', $allowanceId);
                     $allowanceStmt->execute();
                 }
             }
 
+            if (isset($data->fixed_allowances) && is_array($data->fixed_allowances)) {
+                $fixedQuery = "INSERT INTO staff_fixed_allowances (staff_id, allowance_id, fixed_amount) VALUES (:staff_id, :allowance_id, :fixed_amount)";
+                $fixedStmt = $db->prepare($fixedQuery);
+                foreach ($data->fixed_allowances as $fixed) {
+                    $fixedStmt->bindParam(':staff_id', $staffId);
+                    $fixedStmt->bindParam(':allowance_id', $fixed->allowance_id);
+                    $fixedStmt->bindParam(':fixed_amount', $fixed->fixed_amount);
+                    $fixedStmt->execute();
+                }
+            }
+
             if (isset($data->deductions) && is_array($data->deductions)) {
                 $deductionQuery = "INSERT INTO staff_deductions (staff_id, deduction_id) VALUES (:staff_id, :deduction_id)";
                 $deductionStmt = $db->prepare($deductionQuery);
-                foreach ($data->deductions as $deductionId) {
+                foreach ($data->deductions as $deduction) {
+                    $deductionId = is_object($deduction) ? $deduction->id : $deduction;
+                    
                     $deductionStmt->bindParam(':staff_id', $staffId);
                     $deductionStmt->bindParam(':deduction_id', $deductionId);
                     $deductionStmt->execute();
+                }
+            }
+
+            if (isset($data->fixed_deductions) && is_array($data->fixed_deductions)) {
+                $fixedQuery = "INSERT INTO staff_fixed_deductions (staff_id, deduction_id, fixed_amount) VALUES (:staff_id, :deduction_id, :fixed_amount)";
+                $fixedStmt = $db->prepare($fixedQuery);
+                foreach ($data->fixed_deductions as $fixed) {
+                    $fixedStmt->bindParam(':staff_id', $staffId);
+                    $fixedStmt->bindParam(':deduction_id', $fixed->deduction_id);
+                    $fixedStmt->bindParam(':fixed_amount', $fixed->fixed_amount);
+                    $fixedStmt->execute();
                 }
             }
 
@@ -228,7 +258,9 @@ try {
                       `bank_name` = :bank_name,
                       `account_number` = :account_number,
                       `basic_salary` = :basic_salary,
-                      `hire_date` = :hire_date
+                      `salary_currency` = :salary_currency,
+                      `hire_date` = :hire_date,
+                      `on_bonded_or_study_leave` = :on_bonded_or_study_leave
                       WHERE id = :id";
 
             $stmt = $db->prepare($query);
@@ -245,7 +277,11 @@ try {
             $stmt->bindParam(':bank_name', $data->bank_name);
             $stmt->bindParam(':account_number', $data->account_number);
             $stmt->bindParam(':basic_salary', $data->basic_salary);
+            $salary_currency = ($data->status === 'permanent') ? 'USD' : 'GHS';
+            $stmt->bindParam(':salary_currency', $salary_currency);
             $stmt->bindParam(':hire_date', $data->hire_date);
+            $on_leave = isset($data->on_bonded_or_study_leave) ? $data->on_bonded_or_study_leave : FALSE;
+            $stmt->bindParam(':on_bonded_or_study_leave', $on_leave);
             $action = 'UPDATE';
 
             if (isset($data->allowances)) {
@@ -257,10 +293,30 @@ try {
                 if (is_array($data->allowances) && count($data->allowances) > 0) {
                     $allowanceQuery = "INSERT INTO staff_allowances (staff_id, allowance_id) VALUES (:staff_id, :allowance_id)";
                     $allowanceStmt = $db->prepare($allowanceQuery);
-                    foreach ($data->allowances as $allowanceId) {
+                    foreach ($data->allowances as $allowance) {
+                        $allowanceId = is_object($allowance) ? $allowance->id : $allowance;
+                        
                         $allowanceStmt->bindParam(':staff_id', $data->id);
                         $allowanceStmt->bindParam(':allowance_id', $allowanceId);
                         $allowanceStmt->execute();
+                    }
+                }
+            }
+
+            if (isset($data->fixed_allowances)) {
+                $deleteQuery = "DELETE FROM staff_fixed_allowances WHERE staff_id = :staff_id";
+                $deleteStmt = $db->prepare($deleteQuery);
+                $deleteStmt->bindParam(':staff_id', $data->id);
+                $deleteStmt->execute();
+
+                if (is_array($data->fixed_allowances) && count($data->fixed_allowances) > 0) {
+                    $fixedQuery = "INSERT INTO staff_fixed_allowances (staff_id, allowance_id, fixed_amount) VALUES (:staff_id, :allowance_id, :fixed_amount)";
+                    $fixedStmt = $db->prepare($fixedQuery);
+                    foreach ($data->fixed_allowances as $fixed) {
+                        $fixedStmt->bindParam(':staff_id', $data->id);
+                        $fixedStmt->bindParam(':allowance_id', $fixed->allowance_id);
+                        $fixedStmt->bindParam(':fixed_amount', $fixed->fixed_amount);
+                        $fixedStmt->execute();
                     }
                 }
             }
@@ -274,10 +330,30 @@ try {
                 if (is_array($data->deductions) && count($data->deductions) > 0) {
                     $deductionQuery = "INSERT INTO staff_deductions (staff_id, deduction_id) VALUES (:staff_id, :deduction_id)";
                     $deductionStmt = $db->prepare($deductionQuery);
-                    foreach ($data->deductions as $deductionId) {
+                    foreach ($data->deductions as $deduction) {
+                        $deductionId = is_object($deduction) ? $deduction->id : $deduction;
+                        
                         $deductionStmt->bindParam(':staff_id', $data->id);
                         $deductionStmt->bindParam(':deduction_id', $deductionId);
                         $deductionStmt->execute();
+                    }
+                }
+            }
+
+            if (isset($data->fixed_deductions)) {
+                $deleteQuery = "DELETE FROM staff_fixed_deductions WHERE staff_id = :staff_id";
+                $deleteStmt = $db->prepare($deleteQuery);
+                $deleteStmt->bindParam(':staff_id', $data->id);
+                $deleteStmt->execute();
+
+                if (is_array($data->fixed_deductions) && count($data->fixed_deductions) > 0) {
+                    $fixedQuery = "INSERT INTO staff_fixed_deductions (staff_id, deduction_id, fixed_amount) VALUES (:staff_id, :deduction_id, :fixed_amount)";
+                    $fixedStmt = $db->prepare($fixedQuery);
+                    foreach ($data->fixed_deductions as $fixed) {
+                        $fixedStmt->bindParam(':staff_id', $data->id);
+                        $fixedStmt->bindParam(':deduction_id', $fixed->deduction_id);
+                        $fixedStmt->bindParam(':fixed_amount', $fixed->fixed_amount);
+                        $fixedStmt->execute();
                     }
                 }
             }
