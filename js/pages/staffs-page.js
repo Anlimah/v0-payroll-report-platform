@@ -297,78 +297,106 @@ class StaffsPage {
 		const allowancesContainer = document.getElementById("allowancesContainer");
 		const deductionsContainer = document.getElementById("deductionsContainer");
 
-    if (allowancesContainer) {
-      const onLeave = document.getElementById("onLeave")?.checked || false
-      console.log("[v0] Populating allowances. Leave status:", onLeave)
+		if (allowancesContainer) {
+			const onLeave = document.getElementById("onLeave")?.checked || false;
+			console.log("[v0] Populating allowances. Leave status:", onLeave);
 
-      const filteredAllowances = this.allowances.filter((a) => {
-        // If on leave, only show allowances that are allowed during leave
-        if (onLeave && !a.is_bonded) {
-          return false
-        }
-        return true
-      })
+			const filteredAllowances = this.allowances.filter((a) => {
+				// If on leave, only show allowances that are allowed during leave
+				if (onLeave && !a.is_bonded) {
+					return false;
+				}
+				return true;
+			});
 
-      allowancesContainer.innerHTML = filteredAllowances
-        .map((a) => {
-          const isFixed = a.type === "fixed"
-          const isDisabled = onLeave && !a.is_bonded
+			allowancesContainer.innerHTML = filteredAllowances
+				.map((a) => {
+					const isFixed = a.type === "fixed";
+					const isDisabled = onLeave && !a.is_bonded;
 
-          const fieldHtml = isFixed
-            ? `<input type="number" class="allowance-amount" data-id="${a.id}" value="0" step="0.01" min="0" placeholder="Amount" style="width: 80px; margin-left: auto;">`
-            : ``
+					const fieldHtml = isFixed
+						? `<input type="number" class="allowance-amount" data-id="${a.id}" value="0" step="0.01" min="0" placeholder="Amount" style="width: 80px; margin-left: auto;">`
+						: ``;
 
-          return `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; opacity: ${isDisabled ? "0.5" : "1"};">
+					return `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; opacity: ${
+						isDisabled ? "0.5" : "1"
+					};">
                     <label style="display: flex; align-items: center; gap: 8px; flex: 1;">
-                      <input type="checkbox" class="allowance-checkbox" value="${a.id}" data-name="${a.allowance_name}" ${isDisabled ? "disabled" : ""}>
+                      <input type="checkbox" class="allowance-checkbox" value="${
+												a.id
+											}" data-name="${a.allowance_name}" ${
+						isDisabled ? "disabled" : ""
+					}>
                       ${a.allowance_name} (${a.allowance_code})
-                      ${isFixed ? '<span style="font-size: 12px; color: #666;">[Fixed]</span>' : ""}
+                      ${
+												isFixed
+													? '<span style="font-size: 12px; color: #666;">[Fixed]</span>'
+													: ""
+											}
                     </label>
                     ${fieldHtml}
-                  </div>`
-        })
-        .join("")
-    }
+                  </div>`;
+				})
+				.join("");
+		}
 
-    if (deductionsContainer) {
-      deductionsContainer.innerHTML = this.deductions
-        .map((d) => {
-          const isFixed = d.type === "fixed"
+		if (deductionsContainer) {
+			deductionsContainer.innerHTML = this.deductions
+				.map((d) => {
+					const isFixed = d.type === "fixed";
 
-          const fieldHtml = isFixed
-            ? `<input type="number" class="deduction-amount" data-id="${d.id}" value="0" step="0.01" min="0" placeholder="Amount" style="width: 80px; margin-left: auto;">`
-            : ``
+					const fieldHtml = isFixed
+						? `<input type="number" class="deduction-amount" data-id="${d.id}" value="0" step="0.01" min="0" placeholder="Amount" style="width: 80px; margin-left: auto;">`
+						: ``;
 
-          return `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+					return `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                       <label style="display: flex; align-items: center; gap: 8px; flex: 1;">
-                        <input type="checkbox" class="deduction-checkbox" value="${d.id}" data-name="${d.deduction_name}">
+                        <input type="checkbox" class="deduction-checkbox" value="${
+													d.id
+												}" data-name="${d.deduction_name}">
                         ${d.deduction_name} (${d.deduction_code})
-                        ${isFixed ? '<span style="font-size: 12px; color: #666;">[Fixed]</span>' : ""}
+                        ${
+													isFixed
+														? '<span style="font-size: 12px; color: #666;">[Fixed]</span>'
+														: ""
+												}
                       </label>
                       ${fieldHtml}
-                    </div>`
-        })
-        .join("")
-    }
-  }
+                    </div>`;
+				})
+				.join("");
+		}
+	}
 
-  attachEventListeners() {
-    const nextBtn = document.getElementById("nextStaffBtn")
-    const prevBtn = document.getElementById("prevStaffBtn")
+	attachEventListeners() {
+		const nextBtn = document.getElementById("nextStaffBtn");
+		const prevBtn = document.getElementById("prevStaffBtn");
 
-    // Remove old listeners
-    nextBtn.replaceWith(nextBtn.cloneNode(true))
-    prevBtn.replaceWith(prevBtn.cloneNode(true))
+		// Remove old listeners
+		nextBtn.replaceWith(nextBtn.cloneNode(true));
+		prevBtn.replaceWith(prevBtn.cloneNode(true));
 
-    document.getElementById("nextStaffBtn").addEventListener("click", () => this.nextStep())
-    document.getElementById("prevStaffBtn").addEventListener("click", () => this.previousStep())
+		document
+			.getElementById("nextStaffBtn")
+			.addEventListener("click", () => this.nextStep());
+		document
+			.getElementById("prevStaffBtn")
+			.addEventListener("click", () => this.previousStep());
 
-    // Other listeners
-    document.getElementById("addStaffBtn").addEventListener("click", () => this.openModal())
-    document.getElementById("closeStaffModal").addEventListener("click", () => this.closeModal())
-    document.getElementById("cancelStaffBtn").addEventListener("click", () => this.closeModal())
-    document.getElementById("saveStaffBtn").addEventListener("click", () => this.saveStaff())
-  }
+		// Other listeners
+		document
+			.getElementById("addStaffBtn")
+			.addEventListener("click", () => this.openModal());
+		document
+			.getElementById("closeStaffModal")
+			.addEventListener("click", () => this.closeModal());
+		document
+			.getElementById("cancelStaffBtn")
+			.addEventListener("click", () => this.closeModal());
+		document
+			.getElementById("saveStaffBtn")
+			.addEventListener("click", () => this.saveStaff());
+	}
 
 	async loadStaffs() {
 		try {
@@ -386,13 +414,17 @@ class StaffsPage {
 						}</td>
             <td>${staff.department_name || "-"}</td>
             <td>${staff.designation_name || "-"}</td>
-            <td>${staff.salary_currency} ${Number.parseFloat(staff.basic_salary).toFixed(2)}</td>
+            <td>${staff.salary_currency} ${Number.parseFloat(
+							staff.basic_salary
+						).toFixed(2)}</td>
             <td><span class="badge ${
-              staff.is_archived ? "badge-danger" : "badge-success"
-            }">${staff.is_archived ? "Archived" : "Active"}</span></td>
+							staff.is_archived ? "badge-danger" : "badge-success"
+						}">${staff.is_archived ? "Archived" : "Active"}</span></td>
             <td><span class="badge ${
-              staff.on_bonded_or_study_leave ? "badge-warning" : "badge-info"
-            }">${staff.on_bonded_or_study_leave ? "On Leave" : "Active"}</span></td>
+							staff.on_bonded_or_study_leave ? "badge-warning" : "badge-info"
+						}">${
+							staff.on_bonded_or_study_leave ? "On Leave" : "Active"
+						}</span></td>
             <td>
               <div class="action-buttons">
                 <button class="btn btn-sm btn-primary" onclick="staffsPage.editStaff(${
@@ -442,22 +474,25 @@ class StaffsPage {
 		title.textContent = staff ? "Edit Staff" : "Add New Staff";
 		form.reset();
 
-    if (staff) {
-      document.getElementById("staffNumber").value = staff.staff_number
-      document.getElementById("firstName").value = staff.first_name
-      document.getElementById("lastName").value = staff.last_name
-      document.getElementById("otherNames").value = staff.other_names || ""
-      document.getElementById("ssnit").value = staff.ssnit || ""
-      document.getElementById("ghanacard").value = staff.ghana_card || ""
-      document.getElementById("departmentId").value = staff.department_id || ""
-      document.getElementById("designationId").value = staff.designation_id || ""
-      document.getElementById("status").value = staff.status || ""
-      document.getElementById("onLeave").checked = staff.on_bonded_or_study_leave || false
-      document.getElementById("basicSalary").value = staff.basic_salary
-      document.getElementById("dateHired").value = staff.hire_date || ""
-      document.getElementById("bankName").value = staff.bank_name || ""
-      document.getElementById("accountNumber").value = staff.account_number || ""
-      this.updateCurrencyLabel()
+		if (staff) {
+			document.getElementById("staffNumber").value = staff.staff_number;
+			document.getElementById("firstName").value = staff.first_name;
+			document.getElementById("lastName").value = staff.last_name;
+			document.getElementById("otherNames").value = staff.other_names || "";
+			document.getElementById("ssnit").value = staff.ssnit || "";
+			document.getElementById("ghanacard").value = staff.ghana_card || "";
+			document.getElementById("departmentId").value = staff.department_id || "";
+			document.getElementById("designationId").value =
+				staff.designation_id || "";
+			document.getElementById("status").value = staff.status || "";
+			document.getElementById("onLeave").checked =
+				staff.on_bonded_or_study_leave || false;
+			document.getElementById("basicSalary").value = staff.basic_salary;
+			document.getElementById("dateHired").value = staff.hire_date || "";
+			document.getElementById("bankName").value = staff.bank_name || "";
+			document.getElementById("accountNumber").value =
+				staff.account_number || "";
+			this.updateCurrencyLabel();
 
 			if (staff.allowances && Array.isArray(staff.allowances)) {
 				this.selectedAllowances = staff.allowances.map((a) => a.id);
@@ -492,41 +527,44 @@ class StaffsPage {
 		this.currentStep = 1;
 	}
 
-  nextStep() {
-    if (this.currentStep === 1) {
-      // Step 1 validation
-      const requiredFields = [
-        "staffNumber",
-        "firstName",
-        "lastName",
-        "ssnit",
-        "ghanacard",
-        "departmentId",
-        "designationId",
-        "status",
-        "basicSalary",
-      ]
+	nextStep() {
+		if (this.currentStep === 1) {
+			// Step 1 validation
+			const requiredFields = [
+				"staffNumber",
+				"firstName",
+				"lastName",
+				"ssnit",
+				"ghanacard",
+				"departmentId",
+				"designationId",
+				"status",
+				"basicSalary",
+			];
 
-      for (const id of requiredFields) {
-        const el = document.getElementById(id)
-        if (!el || !el.value.trim()) {
-          this.crudManager.showMessage("Please fill in all required fields in Step 1", "error")
-          return
-        }
-      }
+			for (const id of requiredFields) {
+				const el = document.getElementById(id);
+				if (!el || !el.value.trim()) {
+					this.crudManager.showMessage(
+						"Please fill in all required fields in Step 1",
+						"error"
+					);
+					return;
+				}
+			}
 
-      // Populate allowances only after validation passes
-      this.populateAllowancesAndDeductions()
+			// Populate allowances only after validation passes
+			this.populateAllowancesAndDeductions();
 
-      this.currentStep = 2
-      this.updateStepDisplay()
-      console.log("[v2] Moved to step:", this.currentStep)
-    } else if (this.currentStep === 2) {
-      this.currentStep = 3
-      this.updateStepDisplay()
-      console.log("[v2] Moved to step:", this.currentStep)
-    }
-  }
+			this.currentStep = 2;
+			this.updateStepDisplay();
+			console.log("[v2] Moved to step:", this.currentStep);
+		} else if (this.currentStep === 2) {
+			this.currentStep = 3;
+			this.updateStepDisplay();
+			console.log("[v2] Moved to step:", this.currentStep);
+		}
+	}
 
 	previousStep() {
 		if (this.currentStep > 1) {
@@ -557,21 +595,21 @@ class StaffsPage {
 		});
 	}
 
-  async saveStaff() {
-    const staffNumber = document.getElementById("staffNumber").value.trim()
-    const firstName = document.getElementById("firstName").value.trim()
-    const lastName = document.getElementById("lastName").value.trim()
-    const otherNames = document.getElementById("otherNames").value.trim()
-    const ssnit = document.getElementById("ssnit").value.trim()
-    const ghanacard = document.getElementById("ghanacard").value.trim()
-    const departmentId = document.getElementById("departmentId").value
-    const designationId = document.getElementById("designationId").value
-    const status = document.getElementById("status").value
-    const basicSalary = document.getElementById("basicSalary").value
-    const hireDate = document.getElementById("dateHired").value
-    const bankName = document.getElementById("bankName").value.trim()
-    const accountNumber = document.getElementById("accountNumber").value.trim()
-    const onLeave = document.getElementById("onLeave").checked
+	async saveStaff() {
+		const staffNumber = document.getElementById("staffNumber").value.trim();
+		const firstName = document.getElementById("firstName").value.trim();
+		const lastName = document.getElementById("lastName").value.trim();
+		const otherNames = document.getElementById("otherNames").value.trim();
+		const ssnit = document.getElementById("ssnit").value.trim();
+		const ghanacard = document.getElementById("ghanacard").value.trim();
+		const departmentId = document.getElementById("departmentId").value;
+		const designationId = document.getElementById("designationId").value;
+		const status = document.getElementById("status").value;
+		const basicSalary = document.getElementById("basicSalary").value;
+		const hireDate = document.getElementById("dateHired").value;
+		const bankName = document.getElementById("bankName").value.trim();
+		const accountNumber = document.getElementById("accountNumber").value.trim();
+		const onLeave = document.getElementById("onLeave").checked;
 
 		if (
 			!staffNumber ||
@@ -591,70 +629,83 @@ class StaffsPage {
 			return;
 		}
 
-    const selectedAllowances = []
-    const fixedAllowances = []
+		const selectedAllowances = [];
+		const fixedAllowances = [];
 
-    Array.from(document.querySelectorAll(".allowance-checkbox:checked")).forEach((cb) => {
-      const allowanceId = Number.parseInt(cb.value)
-      const allowance = this.allowances.find((a) => a.id === allowanceId)
+		Array.from(
+			document.querySelectorAll(".allowance-checkbox:checked")
+		).forEach((cb) => {
+			const allowanceId = Number.parseInt(cb.value);
+			const allowance = this.allowances.find((a) => a.id === allowanceId);
 
-      if (allowance && allowance.type === "fixed") {
-        const amountInput = document.querySelector(`.allowance-amount[data-id="${allowanceId}"]`)
-        const fixedAmount = amountInput ? Number.parseFloat(amountInput.value) || 0 : 0
-        fixedAllowances.push({
-          allowance_id: allowanceId,
-          fixed_amount: fixedAmount,
-        })
-      } else {
-        selectedAllowances.push(allowanceId)
-      }
-    })
+			if (allowance && allowance.type === "fixed") {
+				const amountInput = document.querySelector(
+					`.allowance-amount[data-id="${allowanceId}"]`
+				);
+				const fixedAmount = amountInput
+					? Number.parseFloat(amountInput.value) || 0
+					: 0;
+				fixedAllowances.push({
+					allowance_id: allowanceId,
+					fixed_amount: fixedAmount,
+				});
+			} else {
+				selectedAllowances.push(allowanceId);
+			}
+		});
 
-    const selectedDeductions = []
-    const fixedDeductions = []
+		const selectedDeductions = [];
+		const fixedDeductions = [];
 
-    Array.from(document.querySelectorAll(".deduction-checkbox:checked")).forEach((cb) => {
-      const deductionId = Number.parseInt(cb.value)
-      const deduction = this.deductions.find((d) => d.id === deductionId)
+		Array.from(
+			document.querySelectorAll(".deduction-checkbox:checked")
+		).forEach((cb) => {
+			const deductionId = Number.parseInt(cb.value);
+			const deduction = this.deductions.find((d) => d.id === deductionId);
 
-      if (deduction && deduction.type === "fixed") {
-        const amountInput = document.querySelector(`.deduction-amount[data-id="${deductionId}"]`)
-        const fixedAmount = amountInput ? Number.parseFloat(amountInput.value) || 0 : 0
-        fixedDeductions.push({
-          deduction_id: deductionId,
-          fixed_amount: fixedAmount,
-        })
-      } else {
-        selectedDeductions.push(deductionId)
-      }
-    })
+			if (deduction && deduction.type === "fixed") {
+				const amountInput = document.querySelector(
+					`.deduction-amount[data-id="${deductionId}"]`
+				);
+				const fixedAmount = amountInput
+					? Number.parseFloat(amountInput.value) || 0
+					: 0;
+				fixedDeductions.push({
+					deduction_id: deductionId,
+					fixed_amount: fixedAmount,
+				});
+			} else {
+				selectedDeductions.push(deductionId);
+			}
+		});
 
-    const salaryCurrency = status === "permanent" ? "USD" : "GHS"
+		const salaryCurrency = status === "permanent" ? "USD" : "GHS";
 
-    const data = {
-      staff_number: staffNumber,
-      first_name: firstName,
-      last_name: lastName,
-      other_names: otherNames || null,
-      ssnit: ssnit,
-      ghanacard: ghanacard,
-      department_id: Number.parseInt(departmentId),
-      designation_id: Number.parseInt(designationId),
-      status: status,
-      salary_currency: salaryCurrency,
-      basic_salary: Number.parseFloat(basicSalary),
-      hire_date: hireDate || null,
-      bank_name: bankName || null,
-      account_number: accountNumber || null,
-      on_bonded_or_study_leave: onLeave,
-      allowances: selectedAllowances,
-      fixed_allowances: fixedAllowances,
-      deductions: selectedDeductions,
-      fixed_deductions: fixedDeductions,
-    }
+		const data = {
+			staff_number: staffNumber,
+			first_name: firstName,
+			last_name: lastName,
+			other_names: otherNames || null,
+			ssnit: ssnit,
+			ghanacard: ghanacard,
+			department_id: Number.parseInt(departmentId),
+			designation_id: Number.parseInt(designationId),
+			status: status,
+			salary_currency: salaryCurrency,
+			basic_salary: Number.parseFloat(basicSalary),
+			hire_date: hireDate || null,
+			bank_name: bankName || null,
+			account_number: accountNumber || null,
+			on_bonded_or_study_leave: onLeave,
+			allowances: selectedAllowances,
+			fixed_allowances: fixedAllowances,
+			deductions: selectedDeductions,
+			fixed_deductions: fixedDeductions,
+		};
 
 		try {
 			const response = await this.crudManager.save(data, this.currentEditId);
+			console.log("[v0] Save staff response:", response);
 			if (response.success) {
 				this.crudManager.showMessage(
 					this.currentEditId
@@ -740,32 +791,43 @@ class StaffsPage {
 		}
 	}
 
-  async deleteStaff(id) {
-    if (!confirm("Are you sure you want to permanently delete this staff member? This action cannot be undone.")) return
+	async deleteStaff(id) {
+		if (
+			!confirm(
+				"Are you sure you want to permanently delete this staff member? This action cannot be undone."
+			)
+		)
+			return;
 
-    try {
-      const response = await this.crudManager.delete(id)
-      if (response.success) {
-        this.crudManager.showMessage("Staff deleted successfully", "success")
-        await this.loadStaffs()
-      } else {
-        this.crudManager.showMessage(response.message || "Failed to delete staff", "error")
-      }
-    } catch (error) {
-      console.error("[v0] Error deleting staff:", error)
-      this.crudManager.showMessage("An error occurred while deleting the staff", "error")
-    }
-  }
+		try {
+			const response = await this.crudManager.delete(id);
+			if (response.success) {
+				this.crudManager.showMessage("Staff deleted successfully", "success");
+				await this.loadStaffs();
+			} else {
+				this.crudManager.showMessage(
+					response.message || "Failed to delete staff",
+					"error"
+				);
+			}
+		} catch (error) {
+			console.error("[v0] Error deleting staff:", error);
+			this.crudManager.showMessage(
+				"An error occurred while deleting the staff",
+				"error"
+			);
+		}
+	}
 
-  updateCurrencyLabel() {
-    const status = document.getElementById("status").value
-    const currencyLabel = document.getElementById("currencyLabel")
-    if (status === "permanent") {
-      currencyLabel.textContent = "USD"
-    } else {
-      currencyLabel.textContent = "GHS"
-    }
-  }
+	updateCurrencyLabel() {
+		const status = document.getElementById("status").value;
+		const currencyLabel = document.getElementById("currencyLabel");
+		if (status === "permanent") {
+			currencyLabel.textContent = "USD";
+		} else {
+			currencyLabel.textContent = "GHS";
+		}
+	}
 
 	async init() {
 		await this.loadDepartmentsAndDesignations();

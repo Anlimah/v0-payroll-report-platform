@@ -60,6 +60,8 @@ CREATE TABLE IF NOT EXISTS staffs (
     FOREIGN KEY (designation_id) REFERENCES designations(id)
 );
 
+ALTER TABLE staffs ADD COLUMN IF NOT EXISTS `salary_currency` VARCHAR(3) DEFAULT 'GHS' AFTER `basic_salary`;
+
 -- Allowances table
 CREATE TABLE IF NOT EXISTS allowances (
     id INT AUTO_INCREMENT PRIMARY KEY,

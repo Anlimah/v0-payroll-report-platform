@@ -1,0 +1,132 @@
+
+================================================================================
+[2025-11-17 15:18:54] ERROR
+Message: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'salary_currency' in 'field list'
+File: C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php
+Line: 155
+Context: {"query":"INSERT INTO staffs (`staff_number`, `first_name`, `last_name`, `other_names`, `ssnit`, `ghana_card`, \r\n                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `salary_currency`, `hire_date`, `on_bonded_or_study_leave`) \r\n                  VALUES (:staff_number, :first_name, :last_name, :other_names, :ssnit, :ghanacard, \r\n                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :salary_currency, :hire_date, :on_bonded_or_study_leave)","params":{"method":"POST","endpoint":"staffs","staff_number":"N\/A"},"type":"DATABASE_ERROR"}
+Stack Trace:
+#0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(155): PDOStatement->execute()
+#1 {main}
+================================================================================
+
+================================================================================
+[2025-11-17 15:18:54] ERROR
+Message: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'salary_currency' in 'field list'
+File: C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php
+Line: 155
+Context: {"query":"INSERT INTO staffs (`staff_number`, `first_name`, `last_name`, `other_names`, `ssnit`, `ghana_card`, \r\n                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `salary_currency`, `hire_date`, `on_bonded_or_study_leave`) \r\n                  VALUES (:staff_number, :first_name, :last_name, :other_names, :ssnit, :ghanacard, \r\n                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :salary_currency, :hire_date, :on_bonded_or_study_leave)","params":{"method":"POST","endpoint":"staffs","staff_number":"N\/A"},"type":"DATABASE_ERROR"}
+Stack Trace:
+#0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(155): PDOStatement->execute()
+#1 {main}
+================================================================================
+
+================================================================================
+[2025-11-17 15:21:46] ERROR
+Message: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'on_bonded_or_study_leave' in 'field list'
+File: C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php
+Line: 155
+Context: {"query":"INSERT INTO staffs (`staff_number`, `first_name`, `last_name`, `other_names`, `ssnit`, `ghana_card`, \r\n                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `salary_currency`, `hire_date`, `on_bonded_or_study_leave`) \r\n                  VALUES (:staff_number, :first_name, :last_name, :other_names, :ssnit, :ghanacard, \r\n                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :salary_currency, :hire_date, :on_bonded_or_study_leave)","params":{"method":"POST","endpoint":"staffs","staff_number":"N\/A"},"type":"DATABASE_ERROR"}
+Stack Trace:
+#0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(155): PDOStatement->execute()
+#1 {main}
+================================================================================
+
+================================================================================
+[2025-11-17 15:21:46] ERROR
+Message: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'on_bonded_or_study_leave' in 'field list'
+File: C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php
+Line: 155
+Context: {"query":"INSERT INTO staffs (`staff_number`, `first_name`, `last_name`, `other_names`, `ssnit`, `ghana_card`, \r\n                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `salary_currency`, `hire_date`, `on_bonded_or_study_leave`) \r\n                  VALUES (:staff_number, :first_name, :last_name, :other_names, :ssnit, :ghanacard, \r\n                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :salary_currency, :hire_date, :on_bonded_or_study_leave)","params":{"method":"POST","endpoint":"staffs","staff_number":"N\/A"},"type":"DATABASE_ERROR"}
+Stack Trace:
+#0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(155): PDOStatement->execute()
+#1 {main}
+================================================================================
+
+================================================================================
+[2025-11-17 15:23:47] ERROR
+Message: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'ICT002' for key 'staff_number'
+File: C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php
+Line: 155
+Context: {"query":"INSERT INTO staffs (`staff_number`, `first_name`, `last_name`, `other_names`, `ssnit`, `ghana_card`, \r\n                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `salary_currency`, `hire_date`, `bonded`) \r\n                  VALUES (:staff_number, :first_name, :last_name, :other_names, :ssnit, :ghanacard, \r\n                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :salary_currency, :hire_date, :bonded)","params":{"method":"POST","endpoint":"staffs","staff_number":"N\/A"},"type":"DATABASE_ERROR"}
+Stack Trace:
+#0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(155): PDOStatement->execute()
+#1 {main}
+================================================================================
+
+================================================================================
+[2025-11-17 15:23:47] ERROR
+Message: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'ICT002' for key 'staff_number'
+File: C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php
+Line: 155
+Context: {"query":"INSERT INTO staffs (`staff_number`, `first_name`, `last_name`, `other_names`, `ssnit`, `ghana_card`, \r\n                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `salary_currency`, `hire_date`, `bonded`) \r\n                  VALUES (:staff_number, :first_name, :last_name, :other_names, :ssnit, :ghanacard, \r\n                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :salary_currency, :hire_date, :bonded)","params":{"method":"POST","endpoint":"staffs","staff_number":"N\/A"},"type":"DATABASE_ERROR"}
+Stack Trace:
+#0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(155): PDOStatement->execute()
+#1 {main}
+================================================================================
+
+================================================================================
+[2025-11-17 15:24:20] ERROR
+Message: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'ICT003' for key 'staff_number'
+File: C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php
+Line: 155
+Context: {"query":"INSERT INTO staffs (`staff_number`, `first_name`, `last_name`, `other_names`, `ssnit`, `ghana_card`, \r\n                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `salary_currency`, `hire_date`, `bonded`) \r\n                  VALUES (:staff_number, :first_name, :last_name, :other_names, :ssnit, :ghanacard, \r\n                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :salary_currency, :hire_date, :bonded)","params":{"method":"POST","endpoint":"staffs","staff_number":"N\/A"},"type":"DATABASE_ERROR"}
+Stack Trace:
+#0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(155): PDOStatement->execute()
+#1 {main}
+================================================================================
+
+================================================================================
+[2025-11-17 15:50:08] ERROR
+Message: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'ICT004' for key 'staff_number'
+File: C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php
+Line: 155
+Context: {"query":"INSERT INTO staffs (`staff_number`, `first_name`, `last_name`, `other_names`, `ssnit`, `ghana_card`, \r\n                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `salary_currency`, `hire_date`, `bonded`) \r\n                  VALUES (:staff_number, :first_name, :last_name, :other_names, :ssnit, :ghanacard, \r\n                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :salary_currency, :hire_date, :bonded)","params":{"method":"POST","endpoint":"staffs","staff_number":"N\/A"},"type":"DATABASE_ERROR"}
+Stack Trace:
+#0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(155): PDOStatement->execute()
+#1 {main}
+================================================================================
+
+================================================================================
+[2025-11-17 15:57:20] ERROR
+Message: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'ICT004' for key 'staff_number'
+File: C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php
+Line: 155
+Context: {"query":"INSERT INTO staffs (`staff_number`, `first_name`, `last_name`, `other_names`, `ssnit`, `ghana_card`, \r\n                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `salary_currency`, `hire_date`, `bonded`) \r\n                  VALUES (:staff_number, :first_name, :last_name, :other_names, :ssnit, :ghanacard, \r\n                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :salary_currency, :hire_date, :bonded)","params":{"method":"POST","endpoint":"staffs","staff_number":"N\/A"},"type":"DATABASE_ERROR"}
+Stack Trace:
+#0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(155): PDOStatement->execute()
+#1 {main}
+================================================================================
+
+================================================================================
+[2025-11-17 15:57:20] ERROR
+Message: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'ICT004' for key 'staff_number'
+File: C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php
+Line: 155
+Context: {"query":"INSERT INTO staffs (`staff_number`, `first_name`, `last_name`, `other_names`, `ssnit`, `ghana_card`, \r\n                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `salary_currency`, `hire_date`, `bonded`) \r\n                  VALUES (:staff_number, :first_name, :last_name, :other_names, :ssnit, :ghanacard, \r\n                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :salary_currency, :hire_date, :bonded)","params":{"method":"POST","endpoint":"staffs","staff_number":"N\/A"},"type":"DATABASE_ERROR"}
+Stack Trace:
+#0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(155): PDOStatement->execute()
+#1 {main}
+================================================================================
+
+================================================================================
+[2025-11-17 15:57:34] ERROR
+Message: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'ICT004' for key 'staff_number'
+File: C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php
+Line: 155
+Context: {"query":"INSERT INTO staffs (`staff_number`, `first_name`, `last_name`, `other_names`, `ssnit`, `ghana_card`, \r\n                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `salary_currency`, `hire_date`, `bonded`) \r\n                  VALUES (:staff_number, :first_name, :last_name, :other_names, :ssnit, :ghanacard, \r\n                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :salary_currency, :hire_date, :bonded)","params":{"method":"POST","endpoint":"staffs","staff_number":"N\/A"},"type":"DATABASE_ERROR"}
+Stack Trace:
+#0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(155): PDOStatement->execute()
+#1 {main}
+================================================================================
+
+================================================================================
+[2025-11-17 15:58:38] ERROR
+Message: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'ICT004' for key 'staff_number'
+File: C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php
+Line: 155
+Context: {"query":"INSERT INTO staffs (`staff_number`, `first_name`, `last_name`, `other_names`, `ssnit`, `ghana_card`, \r\n                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `salary_currency`, `hire_date`, `bonded`) \r\n                  VALUES (:staff_number, :first_name, :last_name, :other_names, :ssnit, :ghanacard, \r\n                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :salary_currency, :hire_date, :bonded)","params":{"method":"POST","endpoint":"staffs","staff_number":"N\/A"},"type":"DATABASE_ERROR"}
+Stack Trace:
+#0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(155): PDOStatement->execute()
+#1 {main}
+================================================================================
