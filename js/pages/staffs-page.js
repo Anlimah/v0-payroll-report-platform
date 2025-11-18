@@ -495,13 +495,26 @@ class StaffsPage {
 				staff.account_number || "";
 			this.updateCurrencyLabel();
 
+			this.populateAllowancesAndDeductions();
+
+			// Now check the boxes after they're created
 			if (staff.allowances && Array.isArray(staff.allowances)) {
 				this.selectedAllowances = staff.allowances.map((a) => a.id);
 				staff.allowances.forEach((a) => {
 					const checkbox = document.querySelector(
 						`.allowance-checkbox[value="${a.id}"]`
 					);
-					if (checkbox) checkbox.checked = true;
+					if (checkbox) {
+						checkbox.checked = true;
+						if (a.type === "fixed" && a.amount) {
+							const amountInput = document.querySelector(
+								`.allowance-amount[data-id="${a.id}"]`
+							);
+							if (amountInput) {
+								amountInput.value = a.amount;
+							}
+						}
+					}
 				});
 			}
 
@@ -511,7 +524,17 @@ class StaffsPage {
 					const checkbox = document.querySelector(
 						`.deduction-checkbox[value="${d.id}"]`
 					);
-					if (checkbox) checkbox.checked = true;
+					if (checkbox) {
+						checkbox.checked = true;
+						if (d.type === "fixed" && d.amount) {
+							const amountInput = document.querySelector(
+								`.deduction-amount[data-id="${d.id}"]`
+							);
+							if (amountInput) {
+								amountInput.value = d.amount;
+							}
+						}
+					}
 				});
 			}
 		}

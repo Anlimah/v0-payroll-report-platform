@@ -172,7 +172,7 @@ try {
                 $deductionStmt = $db->prepare($deductionQuery);
                 foreach ($data->deductions as $deduction) {
                     $deductionStmt->bindParam(':staff_id', $staffId);
-                    $deductionStmt->bindParam(':deduction_id', $deduction->id);
+                    $deductionStmt->bindParam(':deduction_id', $deductionId);
                     $deductionStmt->bindParam(':is_percentage', $deduction->is_percentage);
                     $deductionStmt->bindParam(':amount', $deduction->amount);
                     $deductionStmt->execute();

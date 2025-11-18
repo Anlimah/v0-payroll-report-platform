@@ -107,14 +107,3 @@ Stack Trace:
 #0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(189): PDOStatement->execute()
 #1 {main}
 ================================================================================
-
-================================================================================
-[2025-11-18 17:43:53] ERROR
-Message: SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'deduction_id' cannot be null
-File: C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php
-Line: 178
-Context: {"query":"INSERT INTO staffs (`staff_number`, `first_name`, `last_name`, `other_names`, `ssnit`, `ghana_card`, \r\n                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `salary_currency`, `hire_date`, `bonded`) \r\n                  VALUES (:staff_number, :first_name, :last_name, :other_names, :ssnit, :ghanacard, \r\n                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :salary_currency, :hire_date, :bonded)","params":{"method":"POST","endpoint":"staffs","staff_number":"N\/A"},"type":"DATABASE_ERROR"}
-Stack Trace:
-#0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(178): PDOStatement->execute()
-#1 {main}
-================================================================================
