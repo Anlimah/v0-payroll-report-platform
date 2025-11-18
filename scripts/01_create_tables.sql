@@ -77,6 +77,8 @@ CREATE TABLE IF NOT EXISTS allowances (
 );
 
 ALTER TABLE allowances ADD COLUMN IF NOT EXISTS is_bonded BOOLEAN DEFAULT FALSE AFTER default_amount;
+-- Update allowances table to add leave flag
+ALTER TABLE allowances ADD COLUMN IF NOT EXISTS allowed_on_leave BOOLEAN DEFAULT TRUE AFTER is_bonded;
 
 -- Deductions table
 CREATE TABLE IF NOT EXISTS deductions (
@@ -103,6 +105,37 @@ CREATE TABLE IF NOT EXISTS currency_rates (
     is_active BOOLEAN DEFAULT TRUE,
     FOREIGN KEY (created_by) REFERENCES users(id)
 );
+
+-- Create staff_allowances table for staff-specific allowance configuration
+DROP TABLE IF EXISTS staff_allowances;
+CREATE TABLE IF NOT EXISTS staff_allowances (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    staff_id INT NOT NULL,
+    allowance_id INT NOT NULL,
+    is_percentage BOOLEAN DEFAULT FALSE,
+    amount DECIMAL(15, 2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (staff_id) REFERENCES staffs(id) ON DELETE CASCADE,
+    FOREIGN KEY (allowance_id) REFERENCES allowances(id),
+    UNIQUE KEY unique_staff_allowance (staff_id, allowance_id)
+);
+
+-- Create staff_deductions table for staff-specific deduction configuration
+DROP TABLE IF EXISTS staff_deductions;
+CREATE TABLE IF NOT EXISTS staff_deductions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    staff_id INT NOT NULL,
+    deduction_id INT NOT NULL,
+    is_percentage BOOLEAN DEFAULT FALSE,
+    amount DECIMAL(15, 2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (staff_id) REFERENCES staffs(id) ON DELETE CASCADE,
+    FOREIGN KEY (deduction_id) REFERENCES deductions(id),
+    UNIQUE KEY unique_staff_deduction (staff_id, deduction_id)
+);
+
 
 -- Payroll periods table
 CREATE TABLE IF NOT EXISTS payroll_periods (
@@ -180,3 +213,15 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 INSERT INTO users (username, password, full_name, email, role, position) 
 VALUES ('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'System Administrator', 'admin@university.edu', 'admin', 'HR Manager')
 ON DUPLICATE KEY UPDATE username=username;
+
+
+-- Step 9: Create trigger to ensure only one active currency rate
+DELIMITER //
+CREATE TRIGGER enforce_single_active_rate BEFORE INSERT ON currency_rates
+FOR EACH ROW
+BEGIN
+    IF NEW.is_active = 1 THEN
+        UPDATE currency_rates SET is_active = 0 WHERE is_active = 1;
+    END IF;
+END//
+DELIMITER ;
