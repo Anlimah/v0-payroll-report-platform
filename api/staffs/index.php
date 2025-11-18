@@ -156,52 +156,28 @@ try {
             $staffId = $db->lastInsertId();
 
             if (isset($data->allowances) && is_array($data->allowances)) {
-                $allowanceQuery = "INSERT INTO staff_allowances (staff_id, allowance_id, is_percentage, amount) VALUES (:staff_id, :allowance_id)";
+                $allowanceQuery = "INSERT INTO staff_allowances (staff_id, allowance_id, is_percentage, amount) VALUES (:staff_id, :allowance_id, :is_percentage, :amount)";
                 $allowanceStmt = $db->prepare($allowanceQuery);
                 foreach ($data->allowances as $allowance) {
-                    echo json_encode($allowance);
-                    exit();
                     $allowanceStmt->bindParam(':staff_id', $staffId);
                     $allowanceStmt->bindParam(':allowance_id', $allowance->id);
                     $allowanceStmt->bindParam(':is_percentage', $allowance->is_percentage);
-                    $allowanceStmt->bindParam(':amount', $allowance->default_amount);
+                    $allowanceStmt->bindParam(':amount', $allowance->amount);
                     $allowanceStmt->execute();
                 }
             }
 
-            // if (isset($data->fixed_allowances) && is_array($data->fixed_allowances)) {
-            //     $fixedQuery = "INSERT INTO staff_fixed_allowances (staff_id, allowance_id, is_percentage, amount) VALUES (:staff_id, :allowance_id, :fixed_amount)";
-            //     $fixedStmt = $db->prepare($fixedQuery);
-            //     foreach ($data->fixed_allowances as $fixed) {
-            //         $fixedStmt->bindParam(':staff_id', $staffId);
-            //         $fixedStmt->bindParam(':allowance_id', $fixed->allowance_id);
-            //         $fixedStmt->bindParam(':fixed_amount', $fixed->fixed_amount);
-            //         $fixedStmt->execute();
-            //     }
-            // }
-
             if (isset($data->deductions) && is_array($data->deductions)) {
-                $deductionQuery = "INSERT INTO staff_deductions (staff_id, deduction_id, is_percentage, amount) VALUES (:staff_id, :deduction_id)";
+                $deductionQuery = "INSERT INTO staff_deductions (staff_id, deduction_id, is_percentage, amount) VALUES (:staff_id, :deduction_id, :is_percentage, :amount)";
                 $deductionStmt = $db->prepare($deductionQuery);
                 foreach ($data->deductions as $deduction) {
                     $deductionStmt->bindParam(':staff_id', $staffId);
                     $deductionStmt->bindParam(':deduction_id', $deductionId);
                     $deductionStmt->bindParam(':is_percentage', $deduction->is_percentage);
-                    $deductionStmt->bindParam(':amount', $deduction->default_amount);
+                    $deductionStmt->bindParam(':amount', $deduction->amount);
                     $deductionStmt->execute();
                 }
             }
-
-            // if (isset($data->fixed_deductions) && is_array($data->fixed_deductions)) {
-            //     $fixedQuery = "INSERT INTO staff_fixed_deductions (staff_id, deduction_id, fixed_amount) VALUES (:staff_id, :deduction_id, :fixed_amount)";
-            //     $fixedStmt = $db->prepare($fixedQuery);
-            //     foreach ($data->fixed_deductions as $fixed) {
-            //         $fixedStmt->bindParam(':staff_id', $staffId);
-            //         $fixedStmt->bindParam(':deduction_id', $fixed->deduction_id);
-            //         $fixedStmt->bindParam(':fixed_amount', $fixed->fixed_amount);
-            //         $fixedStmt->execute();
-            //     }
-            // }
 
             $logQuery = "INSERT INTO audit_logs (user_id, action, table_name, record_id) 
                          VALUES (:user_id, 'CREATE', 'staffs', :record_id)";

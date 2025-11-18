@@ -630,7 +630,6 @@ class StaffsPage {
 		}
 
 		const selectedAllowances = [];
-		const fixedAllowances = [];
 
 		Array.from(
 			document.querySelectorAll(".allowance-checkbox:checked")
@@ -638,24 +637,28 @@ class StaffsPage {
 			const allowanceId = Number.parseInt(cb.value);
 			const allowance = this.allowances.find((a) => a.id === allowanceId);
 
-			if (allowance && allowance.type === "fixed") {
+			if (allowance && allowance.is_percentage === 1) {
+				selectedAllowances.push({
+					id: allowanceId,
+					amount: allowance.default_amount,
+					is_percentage: 1,
+				});
+			} else {
 				const amountInput = document.querySelector(
 					`.allowance-amount[data-id="${allowanceId}"]`
 				);
 				const fixedAmount = amountInput
-					? Number.parseFloat(amountInput.value) || 0
+					? Number.parseFloat(amountInput.value) || allowance.default_amount
 					: 0;
-				fixedAllowances.push({
-					allowance_id: allowanceId,
-					fixed_amount: fixedAmount,
+				selectedAllowances.push({
+					id: allowanceId,
+					amount: fixedAmount,
+					is_percentage: 0,
 				});
-			} else {
-				selectedAllowances.push(allowanceId);
 			}
 		});
 
 		const selectedDeductions = [];
-		const fixedDeductions = [];
 
 		Array.from(
 			document.querySelectorAll(".deduction-checkbox:checked")
@@ -663,19 +666,24 @@ class StaffsPage {
 			const deductionId = Number.parseInt(cb.value);
 			const deduction = this.deductions.find((d) => d.id === deductionId);
 
-			if (deduction && deduction.type === "fixed") {
+			if (deduction && deduction.is_percentage === 1) {
+				selectedDeductions.push({
+					id: deductionId,
+					amount: deduction.default_amount,
+					is_percentage: 1,
+				});
+			} else {
 				const amountInput = document.querySelector(
 					`.deduction-amount[data-id="${deductionId}"]`
 				);
 				const fixedAmount = amountInput
 					? Number.parseFloat(amountInput.value) || 0
 					: 0;
-				fixedDeductions.push({
-					deduction_id: deductionId,
-					fixed_amount: fixedAmount,
+				selectedDeductions.push({
+					id: deductionId,
+					amount: fixedAmount,
+					is_percentage: 0,
 				});
-			} else {
-				selectedDeductions.push(deductionId);
 			}
 		});
 
@@ -698,9 +706,7 @@ class StaffsPage {
 			account_number: accountNumber || null,
 			on_bonded_or_study_leave: onLeave,
 			allowances: selectedAllowances,
-			fixed_allowances: fixedAllowances,
 			deductions: selectedDeductions,
-			fixed_deductions: fixedDeductions,
 		};
 
 		try {

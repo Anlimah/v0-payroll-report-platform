@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS staff_allowances (
     FOREIGN KEY (allowance_id) REFERENCES allowances(id) ON DELETE CASCADE,
     UNIQUE KEY unique_staff_allowance (staff_id, allowance_id)
 );
+ALTER TABLE staff_allowances ADD COLUMN IF NOT EXISTS amount DECIMAL(15,2) DEFAULT 0.00 AFTER allowance_id;
+ALTER TABLE staff_allowances ADD COLUMN IF NOT EXISTS is_percentage BOOLEAN DEFAULT 0 AFTER allowance_id;
 
 -- Create staff_deductions table
 CREATE TABLE IF NOT EXISTS staff_deductions (
@@ -19,3 +21,5 @@ CREATE TABLE IF NOT EXISTS staff_deductions (
     FOREIGN KEY (deduction_id) REFERENCES deductions(id) ON DELETE CASCADE,
     UNIQUE KEY unique_staff_deduction (staff_id, deduction_id)
 );
+ALTER TABLE staff_deductions ADD COLUMN IF NOT EXISTS amount DECIMAL(15,2) DEFAULT 0.00 AFTER deduction_id;
+ALTER TABLE staff_deductions ADD COLUMN IF NOT EXISTS is_percentage BOOLEAN DEFAULT 0 AFTER deduction_id;
