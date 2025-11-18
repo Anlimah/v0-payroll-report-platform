@@ -497,13 +497,23 @@ class StaffsPage {
 
 			this.populateAllowancesAndDeductions();
 
-			// Now check the boxes after they're created
+			console.log("[v0] Staff data:", staff);
+			console.log("[v0] Staff allowances:", staff.allowances);
+			console.log("[v0] Staff deductions:", staff.deductions);
+
+			// Now check the boxes after they're created - match by allowance_id
 			if (staff.allowances && Array.isArray(staff.allowances)) {
 				this.selectedAllowances = staff.allowances.map((a) => a.id);
+				
+				console.log("[v0] Trying to check allowances:", this.selectedAllowances);
+				
 				staff.allowances.forEach((a) => {
+					console.log("[v0] Looking for checkbox with value:", a.id);
 					const checkbox = document.querySelector(
 						`.allowance-checkbox[value="${a.id}"]`
 					);
+					console.log("[v0] Found checkbox:", checkbox);
+					
 					if (checkbox) {
 						checkbox.checked = true;
 						if (a.is_percentage === 0 && a.amount) {

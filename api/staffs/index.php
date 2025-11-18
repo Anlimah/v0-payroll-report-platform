@@ -1,16 +1,4 @@
-<?php
-include_once '../config/cors.php';
-include_once '../config/database.php';
-include_once '../middleware/auth.php';
-include_once '../config/error-logger.php';
-
-try {
-    $user = authenticate();
-
-    $database = new Database();
-    $db = $database->getConnection();
-
-    $method = $_SERVER['REQUEST_METHOD'];
+// ... existing code ...
 
     // GET - List all staffs or get by staff number
     if ($method === 'GET') {
@@ -27,7 +15,9 @@ try {
             $data = $stmt->fetch();
 
             if ($data) {
-                $allowancesQuery = "SELECT sa.staff_id, sa.allowance_id AS id, sa.amount, sa.is_percentage FROM allowances a
+                // <CHANGE> Updated to include all allowance data needed for frontend
+                $allowancesQuery = "SELECT a.id, a.allowance_name, a.allowance_code, a.type, a.is_bonded, a.default_amount, a.is_percentage, sa.amount, sa.is_percentage as staff_is_percentage 
+                                   FROM allowances a
                                    INNER JOIN staff_allowances sa ON a.id = sa.allowance_id
                                    WHERE sa.staff_id = :staff_id AND a.is_archived = 0";
                 $allowancesStmt = $db->prepare($allowancesQuery);
@@ -35,7 +25,9 @@ try {
                 $allowancesStmt->execute();
                 $data['allowances'] = $allowancesStmt->fetchAll();
 
-                $deductionsQuery = "SELECT sd.staff_id, sd.deduction_id AS id, sd.amount, sd.is_percentage FROM deductions d
+                // <CHANGE> Updated to include all deduction data needed for frontend
+                $deductionsQuery = "SELECT d.id, d.deduction_name, d.deduction_code, d.type, d.default_amount, d.is_percentage, sd.amount, sd.is_percentage as staff_is_percentage 
+                                   FROM deductions d
                                    INNER JOIN staff_deductions sd ON d.id = sd.deduction_id
                                    WHERE sd.staff_id = :staff_id AND d.is_archived = 0";
                 $deductionsStmt = $db->prepare($deductionsQuery);
@@ -62,7 +54,9 @@ try {
             $data = $stmt->fetch();
 
             if ($data) {
-                $allowancesQuery = "SELECT sa.staff_id, sa.allowance_id AS id, sa.amount, sa.is_percentage FROM allowances a
+                // <CHANGE> Updated to include all allowance data needed for frontend
+                $allowancesQuery = "SELECT a.id, a.allowance_name, a.allowance_code, a.type, a.is_bonded, a.default_amount, a.is_percentage, sa.amount, sa.is_percentage as staff_is_percentage 
+                                   FROM allowances a
                                    INNER JOIN staff_allowances sa ON a.id = sa.allowance_id
                                    WHERE sa.staff_id = :staff_id AND a.is_archived = 0";
                 $allowancesStmt = $db->prepare($allowancesQuery);
@@ -70,7 +64,9 @@ try {
                 $allowancesStmt->execute();
                 $data['allowances'] = $allowancesStmt->fetchAll();
 
-                $deductionsQuery = "SELECT sd.staff_id, sd.deduction_id AS id, sd.amount, sd.is_percentage FROM deductions d
+                // <CHANGE> Updated to include all deduction data needed for frontend
+                $deductionsQuery = "SELECT d.id, d.deduction_name, d.deduction_code, d.type, d.default_amount, d.is_percentage, sd.amount, sd.is_percentage as staff_is_percentage 
+                                   FROM deductions d
                                    INNER JOIN staff_deductions sd ON d.id = sd.deduction_id
                                    WHERE sd.staff_id = :staff_id AND d.is_archived = 0";
                 $deductionsStmt = $db->prepare($deductionsQuery);
@@ -85,342 +81,6 @@ try {
                 'data' => $data
             ]);
         } else {
-            $includeArchived = isset($_GET['include_archived']) ? $_GET['include_archived'] : false;
-
-            if ($includeArchived) {
-                $query = "SELECT s.*, d.department_name, des.designation_name 
-                          FROM staffs s
-                          LEFT JOIN departments d ON s.department_id = d.id
-                          LEFT JOIN designations des ON s.designation_id = des.id
-                          ORDER BY s.last_name, s.first_name";
-            } else {
-                $query = "SELECT s.*, d.department_name, des.designation_name 
-                          FROM staffs s
-                          LEFT JOIN departments d ON s.department_id = d.id
-                          LEFT JOIN designations des ON s.designation_id = des.id
-                          WHERE s.is_archived = 0
-                          ORDER BY s.last_name, s.first_name";
-            }
-
-            $stmt = $db->query($query);
-            $staffs = $stmt->fetchAll();
-
-            http_response_code(200);
-            echo json_encode([
-                'success' => true,
-                'data' => $staffs
-            ]);
+            // ... existing code ...
         }
     }
-
-    // POST - Create new staff
-    else if ($method === 'POST') {
-        requireAdmin($user);
-
-        $data = json_decode(file_get_contents("php://input"));
-
-        if (!isset($data->staff_number) || !isset($data->first_name) || !isset($data->last_name)) {
-            http_response_code(400);
-            echo json_encode([
-                'success' => false,
-                'message' => 'Staff number, first name, and last name are required'
-            ]);
-            exit();
-        }
-
-        $query = "INSERT INTO staffs (`staff_number`, `first_name`, `last_name`, `other_names`, `ssnit`, `ghana_card`, 
-                  `department_id`, `designation_id`, `status` , `bank_name`, `account_number`, `basic_salary`, `salary_currency`, `hire_date`, `bonded`) 
-                  VALUES (:staff_number, :first_name, :last_name, :other_names, :ssnit, :ghanacard, 
-                  :department_id, :designation_id, :status, :bank_name, :account_number, :basic_salary, :salary_currency, :hire_date, :bonded)";
-        $stmt = $db->prepare($query);
-
-        $stmt->bindParam(':staff_number', $data->staff_number);
-        $stmt->bindParam(':first_name', $data->first_name);
-        $stmt->bindParam(':last_name', $data->last_name);
-        $stmt->bindParam(':other_names', $data->other_names);
-        $stmt->bindParam(':ssnit', $data->ssnit);
-        $stmt->bindParam(':ghanacard', $data->ghanacard);
-        $stmt->bindParam(':department_id', $data->department_id);
-        $stmt->bindParam(':designation_id', $data->designation_id);
-        $stmt->bindParam(':status', $data->status);
-        $stmt->bindParam(':bank_name', $data->bank_name);
-        $stmt->bindParam(':account_number', $data->account_number);
-        $stmt->bindParam(':basic_salary', $data->basic_salary);
-        $salary_currency = ($data->status === 'permanent') ? 'USD' : 'GHS';
-        $stmt->bindParam(':salary_currency', $salary_currency);
-        $stmt->bindParam(':hire_date', $data->hire_date);
-        $on_leave = isset($data->on_bonded_or_study_leave) ? $data->on_bonded_or_study_leave : FALSE;
-        $stmt->bindParam(':bonded', $on_leave);
-
-        if ($stmt->execute()) {
-            $staffId = $db->lastInsertId();
-
-            if (isset($data->allowances) && is_array($data->allowances)) {
-                $allowanceQuery = "INSERT INTO staff_allowances (staff_id, allowance_id, is_percentage, amount) VALUES (:staff_id, :allowance_id, :is_percentage, :amount)";
-                $allowanceStmt = $db->prepare($allowanceQuery);
-                foreach ($data->allowances as $allowance) {
-                    $allowanceStmt->bindParam(':staff_id', $staffId);
-                    $allowanceStmt->bindParam(':allowance_id', $allowance->id);
-                    $allowanceStmt->bindParam(':is_percentage', $allowance->is_percentage);
-                    $allowanceStmt->bindParam(':amount', $allowance->amount);
-                    $allowanceStmt->execute();
-                }
-            }
-
-            if (isset($data->deductions) && is_array($data->deductions)) {
-                $deductionQuery = "INSERT INTO staff_deductions (staff_id, deduction_id, is_percentage, amount) VALUES (:staff_id, :deduction_id, :is_percentage, :amount)";
-                $deductionStmt = $db->prepare($deductionQuery);
-                foreach ($data->deductions as $deduction) {
-                    $deductionStmt->bindParam(':staff_id', $staffId);
-                    $deductionStmt->bindParam(':deduction_id', $deductionId);
-                    $deductionStmt->bindParam(':is_percentage', $deduction->is_percentage);
-                    $deductionStmt->bindParam(':amount', $deduction->amount);
-                    $deductionStmt->execute();
-                }
-            }
-
-            $logQuery = "INSERT INTO audit_logs (user_id, action, table_name, record_id) 
-                         VALUES (:user_id, 'CREATE', 'staffs', :record_id)";
-            $logStmt = $db->prepare($logQuery);
-            $logStmt->bindParam(':user_id', $user->user_id);
-            $logStmt->bindParam(':record_id', $staffId);
-            $logStmt->execute();
-
-            http_response_code(201);
-            echo json_encode([
-                'success' => true,
-                'message' => 'Staff created successfully',
-                'id' => $staffId
-            ]);
-        } else {
-            http_response_code(500);
-            echo json_encode([
-                'success' => false,
-                'message' => 'Failed to create staff'
-            ]);
-        }
-    }
-
-    // PUT - Update staff
-    else if ($method === 'PUT') {
-        requireAdmin($user);
-
-        $data = json_decode(file_get_contents("php://input"));
-
-        if (!isset($data->id)) {
-            http_response_code(400);
-            echo json_encode([
-                'success' => false,
-                'message' => 'Staff ID is required'
-            ]);
-            exit();
-        }
-
-        if (isset($data->is_archived)) {
-            $query = "UPDATE staffs SET is_archived = :is_archived WHERE id = :id";
-            $stmt = $db->prepare($query);
-            $stmt->bindParam(':id', $data->id);
-            $stmt->bindParam(':is_archived', $data->is_archived);
-            $action = $data->is_archived ? 'ARCHIVE' : 'RESTORE';
-        } else {
-            $query = "UPDATE `staffs` SET 
-                      `staff_number` = :staff_number,
-                      `first_name` = :first_name,
-                      `last_name` = :last_name,
-                      `other_names` = :other_names,
-                      `ssnit` = :ssnit,
-                      `ghana_card` = :ghanacard,
-                      `department_id` = :department_id,
-                      `designation_id` = :designation_id,
-                      `status` = :status,
-                      `bank_name` = :bank_name,
-                      `account_number` = :account_number,
-                      `basic_salary` = :basic_salary,
-                      `salary_currency` = :salary_currency,
-                      `hire_date` = :hire_date,
-                      `bonded` = :bonded
-                      WHERE id = :id";
-
-            $stmt = $db->prepare($query);
-            $stmt->bindParam(':id', $data->id);
-            $stmt->bindParam(':staff_number', $data->staff_number);
-            $stmt->bindParam(':first_name', $data->first_name);
-            $stmt->bindParam(':last_name', $data->last_name);
-            $stmt->bindParam(':other_names', $data->other_names);
-            $stmt->bindParam(':ssnit', $data->ssnit);
-            $stmt->bindParam(':ghanacard', $data->ghanacard);
-            $stmt->bindParam(':department_id', $data->department_id);
-            $stmt->bindParam(':designation_id', $data->designation_id);
-            $stmt->bindParam(':status', $data->status);
-            $stmt->bindParam(':bank_name', $data->bank_name);
-            $stmt->bindParam(':account_number', $data->account_number);
-            $stmt->bindParam(':basic_salary', $data->basic_salary);
-            $salary_currency = ($data->status === 'permanent') ? 'USD' : 'GHS';
-            $stmt->bindParam(':salary_currency', $salary_currency);
-            $stmt->bindParam(':hire_date', $data->hire_date);
-            $on_leave = isset($data->on_bonded_or_study_leave) ? $data->on_bonded_or_study_leave : FALSE;
-            $stmt->bindParam(':bonded', $on_leave);
-            $action = 'UPDATE';
-
-            if (isset($data->allowances)) {
-                $deleteAllowanceQuery = "DELETE FROM staff_allowances WHERE staff_id = :staff_id";
-                $deleteAllowanceStmt = $db->prepare($deleteAllowanceQuery);
-                $deleteAllowanceStmt->bindParam(':staff_id', $data->id);
-                $deleteAllowanceStmt->execute();
-
-                if (is_array($data->allowances) && count($data->allowances) > 0) {
-                    $allowanceQuery = "INSERT INTO staff_allowances (staff_id, allowance_id) VALUES (:staff_id, :allowance_id)";
-                    $allowanceStmt = $db->prepare($allowanceQuery);
-                    foreach ($data->allowances as $allowance) {
-                        $allowanceId = is_object($allowance) ? $allowance->id : $allowance;
-
-                        $allowanceStmt->bindParam(':staff_id', $data->id);
-                        $allowanceStmt->bindParam(':allowance_id', $allowanceId);
-                        $allowanceStmt->execute();
-                    }
-                }
-            }
-
-            if (isset($data->fixed_allowances)) {
-                $deleteQuery = "DELETE FROM staff_fixed_allowances WHERE staff_id = :staff_id";
-                $deleteStmt = $db->prepare($deleteQuery);
-                $deleteStmt->bindParam(':staff_id', $data->id);
-                $deleteStmt->execute();
-
-                if (is_array($data->fixed_allowances) && count($data->fixed_allowances) > 0) {
-                    $fixedQuery = "INSERT INTO staff_fixed_allowances (staff_id, allowance_id, fixed_amount) VALUES (:staff_id, :allowance_id, :fixed_amount)";
-                    $fixedStmt = $db->prepare($fixedQuery);
-                    foreach ($data->fixed_allowances as $fixed) {
-                        $fixedStmt->bindParam(':staff_id', $data->id);
-                        $fixedStmt->bindParam(':allowance_id', $fixed->allowance_id);
-                        $fixedStmt->bindParam(':fixed_amount', $fixed->fixed_amount);
-                        $fixedStmt->execute();
-                    }
-                }
-            }
-
-            if (isset($data->deductions)) {
-                $deleteDeductionQuery = "DELETE FROM staff_deductions WHERE staff_id = :staff_id";
-                $deleteDeductionStmt = $db->prepare($deleteDeductionQuery);
-                $deleteDeductionStmt->bindParam(':staff_id', $data->id);
-                $deleteDeductionStmt->execute();
-
-                if (is_array($data->deductions) && count($data->deductions) > 0) {
-                    $deductionQuery = "INSERT INTO staff_deductions (staff_id, deduction_id) VALUES (:staff_id, :deduction_id)";
-                    $deductionStmt = $db->prepare($deductionQuery);
-                    foreach ($data->deductions as $deduction) {
-                        $deductionId = is_object($deduction) ? $deduction->id : $deduction;
-
-                        $deductionStmt->bindParam(':staff_id', $data->id);
-                        $deductionStmt->bindParam(':deduction_id', $deductionId);
-                        $deductionStmt->execute();
-                    }
-                }
-            }
-
-            if (isset($data->fixed_deductions)) {
-                $deleteQuery = "DELETE FROM staff_fixed_deductions WHERE staff_id = :staff_id";
-                $deleteStmt = $db->prepare($deleteQuery);
-                $deleteStmt->bindParam(':staff_id', $data->id);
-                $deleteStmt->execute();
-
-                if (is_array($data->fixed_deductions) && count($data->fixed_deductions) > 0) {
-                    $fixedQuery = "INSERT INTO staff_fixed_deductions (staff_id, deduction_id, fixed_amount) VALUES (:staff_id, :deduction_id, :fixed_amount)";
-                    $fixedStmt = $db->prepare($fixedQuery);
-                    foreach ($data->fixed_deductions as $fixed) {
-                        $fixedStmt->bindParam(':staff_id', $data->id);
-                        $fixedStmt->bindParam(':deduction_id', $fixed->deduction_id);
-                        $fixedStmt->bindParam(':fixed_amount', $fixed->fixed_amount);
-                        $fixedStmt->execute();
-                    }
-                }
-            }
-        }
-
-        if ($stmt->execute()) {
-            $logQuery = "INSERT INTO audit_logs (user_id, action, table_name, record_id) 
-                         VALUES (:user_id, :action, 'staffs', :record_id)";
-            $logStmt = $db->prepare($logQuery);
-            $logStmt->bindParam(':user_id', $user->user_id);
-            $logStmt->bindParam(':action', $action);
-            $logStmt->bindParam(':record_id', $data->id);
-            $logStmt->execute();
-
-            http_response_code(200);
-            echo json_encode([
-                'success' => true,
-                'message' => 'Staff updated successfully'
-            ]);
-        } else {
-            http_response_code(500);
-            echo json_encode([
-                'success' => false,
-                'message' => 'Failed to update staff'
-            ]);
-        }
-    }
-
-    // DELETE - Delete staff
-    else if ($method === 'DELETE') {
-        requireAdmin($user);
-
-        $data = json_decode(file_get_contents("php://input"));
-
-        if (!isset($data->id)) {
-            http_response_code(400);
-            echo json_encode([
-                'success' => false,
-                'message' => 'Staff ID is required'
-            ]);
-            exit();
-        }
-
-        $query = "DELETE FROM staffs WHERE id = :id";
-        $stmt = $db->prepare($query);
-        $stmt->bindParam(':id', $data->id);
-
-        if ($stmt->execute()) {
-            $logQuery = "INSERT INTO audit_logs (user_id, action, table_name, record_id) 
-                         VALUES (:user_id, 'DELETE', 'staffs', :record_id)";
-            $logStmt = $db->prepare($logQuery);
-            $logStmt->bindParam(':user_id', $user->user_id);
-            $logStmt->bindParam(':record_id', $data->id);
-            $logStmt->execute();
-
-            http_response_code(200);
-            echo json_encode([
-                'success' => true,
-                'message' => 'Staff deleted successfully'
-            ]);
-        } else {
-            http_response_code(500);
-            echo json_encode([
-                'success' => false,
-                'message' => 'Failed to delete staff'
-            ]);
-        }
-    }
-} catch (PDOException $e) {
-    ErrorLogger::logDatabaseError($e, $query ?? 'Unknown query', [
-        'method' => $method ?? 'Unknown',
-        'endpoint' => 'staffs',
-        'staff_number' => $_GET['staff_number'] ?? 'N/A'
-    ]);
-
-    http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'message' => 'A database error occurred - ' . $e->getMessage()
-    ]);
-} catch (Exception $e) {
-    ErrorLogger::logError($e, [
-        'method' => $method ?? 'Unknown',
-        'endpoint' => 'staffs'
-    ]);
-
-    http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'message' => 'An unexpected error occurred'
-    ]);
-}
