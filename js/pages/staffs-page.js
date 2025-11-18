@@ -371,10 +371,11 @@ class StaffsPage {
 	attachEventListeners() {
 		const nextBtn = document.getElementById("nextStaffBtn");
 		const prevBtn = document.getElementById("prevStaffBtn");
+		const saveBtn = document.getElementById("saveStaffBtn");
 
-		// Remove old listeners
 		nextBtn.replaceWith(nextBtn.cloneNode(true));
 		prevBtn.replaceWith(prevBtn.cloneNode(true));
+		saveBtn.replaceWith(saveBtn.cloneNode(true));
 
 		document
 			.getElementById("nextStaffBtn")
@@ -382,6 +383,9 @@ class StaffsPage {
 		document
 			.getElementById("prevStaffBtn")
 			.addEventListener("click", () => this.previousStep());
+		document
+			.getElementById("saveStaffBtn")
+			.addEventListener("click", () => this.saveStaff());
 
 		// Other listeners
 		document
@@ -393,9 +397,6 @@ class StaffsPage {
 		document
 			.getElementById("cancelStaffBtn")
 			.addEventListener("click", () => this.closeModal());
-		document
-			.getElementById("saveStaffBtn")
-			.addEventListener("click", () => this.saveStaff());
 	}
 
 	async loadStaffs() {
