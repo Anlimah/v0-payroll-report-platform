@@ -62,7 +62,7 @@ try {
             $data = $stmt->fetch();
 
             if ($data) {
-                $allowancesQuery = "SELECT a.* FROM allowances a
+                $allowancesQuery = "SELECT sa.staff_id, sa.allowance_id AS id, sa.amount, sa.is_percentage FROM allowances a
                                    INNER JOIN staff_allowances sa ON a.id = sa.allowance_id
                                    WHERE sa.staff_id = :staff_id AND a.is_archived = 0";
                 $allowancesStmt = $db->prepare($allowancesQuery);
@@ -70,7 +70,7 @@ try {
                 $allowancesStmt->execute();
                 $data['allowances'] = $allowancesStmt->fetchAll();
 
-                $deductionsQuery = "SELECT d.* FROM deductions d
+                $deductionsQuery = "SELECT sd.staff_id, sd.deduction_id AS id, sd.amount, sd.is_percentage FROM deductions d
                                    INNER JOIN staff_deductions sd ON d.id = sd.deduction_id
                                    WHERE sd.staff_id = :staff_id AND d.is_archived = 0";
                 $deductionsStmt = $db->prepare($deductionsQuery);

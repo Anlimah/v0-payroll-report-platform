@@ -506,7 +506,7 @@ class StaffsPage {
 					);
 					if (checkbox) {
 						checkbox.checked = true;
-						if (a.type === "fixed" && a.amount) {
+						if (a.is_percentage === 0 && a.amount) {
 							const amountInput = document.querySelector(
 								`.allowance-amount[data-id="${a.id}"]`
 							);
@@ -526,7 +526,7 @@ class StaffsPage {
 					);
 					if (checkbox) {
 						checkbox.checked = true;
-						if (d.type === "fixed" && d.amount) {
+						if (d.is_percentage === 0 && d.amount) {
 							const amountInput = document.querySelector(
 								`.deduction-amount[data-id="${d.id}"]`
 							);

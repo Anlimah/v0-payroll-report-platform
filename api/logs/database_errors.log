@@ -107,3 +107,14 @@ Stack Trace:
 #0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(189): PDOStatement->execute()
 #1 {main}
 ================================================================================
+
+================================================================================
+[2025-11-18 18:21:35] ERROR
+Message: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'sd.allowance_id' in 'field list'
+File: C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php
+Line: 78
+Context: {"query":"SELECT s.*, d.department_name, des.designation_name \r\n                      FROM staffs s\r\n                      LEFT JOIN departments d ON s.department_id = d.id\r\n                      LEFT JOIN designations des ON s.designation_id = des.id\r\n                      WHERE s.id = :id","params":{"method":"GET","endpoint":"staffs","staff_number":"N\/A"},"type":"DATABASE_ERROR"}
+Stack Trace:
+#0 C:\xampp\htdocs\v0-payroll-report-platform\api\staffs\index.php(78): PDOStatement->execute()
+#1 {main}
+================================================================================
