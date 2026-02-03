@@ -9,15 +9,13 @@ class AllowancesPage {
 	}
 
 	render() {
-		return `
+	return `
       <div class="card">
         <div class="card-header">
           <h2 class="card-title">Allowances Management</h2>
           <div style="display: flex; gap: 12px;">
             <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
-              <input type="checkbox" id="showArchivedAllowances" ${
-								this.showArchived ? "checked" : ""
-							}>
+              <input type="checkbox" id="showArchivedAllowances" ${this.showArchived ? "checked" : ""}>
               Show Archived
             </label>
             <button class="btn btn-primary" onclick="window.allowancesPage.showCreateModal()">
@@ -34,6 +32,7 @@ class AllowancesPage {
                 <th>Name</th>
                 <th>Type</th>
                 <th>Default Amount</th>
+                <th>Eligible Status</th>
                 <th>Description</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -41,7 +40,7 @@ class AllowancesPage {
             </thead>
             <tbody id="allowances-tbody">
               <tr>
-                <td colspan="7" style="text-align: center; padding: 40px;">
+                <td colspan="8" style="text-align: center; padding: 40px;">
                   <div class="loader" style="margin: 0 auto;"></div>
                   <p style="margin-top: 12px; color: var(--text-secondary);">Loading allowances...</p>
                 </td>
@@ -88,15 +87,25 @@ class AllowancesPage {
                   <input type="number" id="default_amount" name="default_amount" step="0.01" min="0" required>
                 </div>
               </div>
+
+              <div class="form-group">
+                <label for="eligible_status">Eligible Staff Status *</label>
+                <select id="eligible_status" name="eligible_status" required>
+                  <option value="">Select Status</option>
+                  <option value="both">Both</option>
+                  <option value="permanent">Permanent</option>
+                  <option value="contract">Contract</option>
+                </select>
+              </div>
               
-                <div class="form-group">
-                  <label for="bonded">Bonded/Study Leave *</label>
-                  <select id="bonded" name="bonded" required>
-                    <option value="">Select Option</option>
-                    <option value="0">No</option>
-                    <option value="1">Yes</option>
-                  </select>
-                </div>
+              <div class="form-group">
+                <label for="bonded">Bonded/Study Leave *</label>
+                <select id="bonded" name="bonded" required>
+                  <option value="">Select Option</option>
+                  <option value="0">No</option>
+                  <option value="1">Yes</option>
+                </select>
+              </div>
 
               <div class="form-group">
                 <label for="description">Description</label>
@@ -111,7 +120,8 @@ class AllowancesPage {
         </div>
       </div>
     `;
-	}
+}
+
 
 	async init() {
 		this.attachEventListeners();
@@ -176,6 +186,9 @@ class AllowancesPage {
 						? allowance.default_amount + "%"
 						: "$" + Number.parseFloat(allowance.default_amount).toFixed(2)
 				}</td>
+
+				<td><span class="badge badge-secondary">${allowance.eligible_status || "-"}</span></td>
+				
         <td>${allowance.description || "-"}</td>
         <td>
           <span class="badge ${
@@ -186,11 +199,7 @@ class AllowancesPage {
         </td>
         <td>
           <div class="action-buttons">
-            <button class="btn btn-sm btn-primary" onclick="window.allowancesPage.showEditModal(${
-							allowance.id
-						})" title="Edit">
-              Edit
-            </button>
+            <button class="btn btn-sm btn-primary" onclick="window.allowancesPage.showEditModal(${allowance.id})" title="Edit">Edit</button>
             <button class="btn btn-sm ${
 							allowance.is_archived ? "btn-success" : "btn-warning"
 						}" 
@@ -239,6 +248,10 @@ class AllowancesPage {
 				: "0";
 			document.getElementById("description").value =
 				this.currentAllowance.description || "";
+
+				document.getElementById("eligible_status").value = 
+    this.currentAllowance.eligible_status || "both";
+
 
 			document.getElementById("allowance-modal").classList.add("active");
 		} catch (error) {

@@ -1,19 +1,40 @@
 class StaffsPage {
 	constructor() {
-		this.crudManager = new window.CRUDManager(
-			window.API_ENDPOINTS.STAFFS,
-			"staff"
-		);
-		this.currentEditId = null;
-		this.showArchived = false;
-		this.departments = [];
-		this.designations = [];
-		this.allowances = [];
-		this.deductions = [];
-		this.selectedAllowances = [];
-		this.selectedDeductions = [];
-		this.currentStep = 1;
-	}
+  this.crudManager = new window.CRUDManager(
+    window.API_ENDPOINTS.STAFFS,
+    "staff"
+  );
+  this.currentEditId = null;
+  this.currentEditStaff = null; // ✅ ADD THIS
+  this.showArchived = false;
+  this.departments = [];
+  this.designations = [];
+  this.allowances = [];
+  this.deductions = [];
+  this.selectedAllowances = [];
+  this.selectedDeductions = [];
+  this.currentStep = 1;
+}
+
+updateStaffSummary() {
+  const staffNumber = document.getElementById("staffNumber").value;
+  const firstName = document.getElementById("firstName").value;
+  const lastName = document.getElementById("lastName").value;
+  const status = document.getElementById("status").value;
+  const salary = parseFloat(document.getElementById("basicSalary").value || 0);
+  const onLeave = document.getElementById("onLeave").checked;
+
+  const formattedSalary = salary.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  document.getElementById("summaryName").textContent =
+    `${staffNumber} — ${firstName} ${lastName}`;
+
+  document.getElementById("summaryMeta").textContent =
+    `Status: ${status} | Basic Salary: ${document.getElementById("currencyLabel").textContent} ${formattedSalary} | On Leave: ${onLeave ? "Yes" : "No"}`;
+
+  document.getElementById("staffSummary").classList.remove("hidden");
+}
+
 
 	render() {
 		return `
@@ -62,6 +83,15 @@ class StaffsPage {
             <button class="modal-close" id="closeStaffModal">&times;</button>
           </div>
           <div class="modal-body">
+				<div id="staffSummary" class="staff-summary hidden">
+				<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+					<i class="fa fa-user"></i>
+					<strong id="summaryName"></strong>
+				</div>
+				<span id="summaryMeta"></span>
+				</div>
+
+
             <!-- Step Indicator -->
             <div style="display: flex; justify-content: space-between; margin-bottom: 24px; align-items: center;">
               <div style="display: flex; align-items: center; gap: 8px;">
@@ -293,80 +323,156 @@ class StaffsPage {
 		this.populateAllowancesAndDeductions();
 	}
 
-	populateAllowancesAndDeductions() {
-		const allowancesContainer = document.getElementById("allowancesContainer");
-		const deductionsContainer = document.getElementById("deductionsContainer");
+populateAllowancesAndDeductions() {
+  const allowancesContainer = document.getElementById("allowancesContainer");
+  const deductionsContainer = document.getElementById("deductionsContainer");
+  const onLeave = document.getElementById("onLeave")?.checked || false;
+  const status = document.getElementById("status")?.value;
 
-		if (allowancesContainer) {
-			const onLeave = document.getElementById("onLeave")?.checked || false;
-			console.log("[v0] Populating allowances. Leave status:", onLeave);
+  // --- ALLOWANCES ---
+  if (allowancesContainer) {
+    const filteredAllowances = this.allowances.filter(a => {
+      if (a.eligible_status !== 'both' && a.eligible_status !== status) return false;
+      if (onLeave && !a.allowed_on_leave) return false;
+      return true;
+    });
 
-			const filteredAllowances = this.allowances.filter((a) => {
-				// If on leave, only show allowances that are allowed during leave
-				if (onLeave && !a.is_bonded) {
-					return false;
-				}
-				return true;
-			});
+    const staffAllowanceMap = new Map(
+      (this.currentEditStaff?.allowances || []).map(a => [a.id, a])
+    );
 
-			allowancesContainer.innerHTML = filteredAllowances
-				.map((a) => {
-					const isFixed = a.type === "fixed";
-					const isDisabled = onLeave && !a.is_bonded;
+    const mergedAllowances = filteredAllowances.map(a => {
+      const staffA = staffAllowanceMap.get(a.id);
+      return { ...a, staff_amount: staffA?.amount ?? null };
+    });
 
-					const fieldHtml = isFixed
-						? `<input type="number" class="allowance-amount" data-id="${a.id}" value="0" step="0.01" min="0" placeholder="Amount" style="width: 80px; margin-left: auto;">`
-						: ``;
+    allowancesContainer.innerHTML = mergedAllowances.map(a => {
+      const isFixed = a.is_percentage === 0;
+      const checked = this.currentEditStaff?.allowances?.some(x => x.id === a.id) ? 'checked' : '';
 
-					return `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; opacity: ${
-						isDisabled ? "0.5" : "1"
-					};">
-                    <label style="display: flex; align-items: center; gap: 8px; flex: 1;">
-                      <input type="checkbox" class="allowance-checkbox" value="${
-												a.id
-											}" data-name="${a.allowance_name}" ${
-						isDisabled ? "disabled" : ""
-					}>
-                      ${a.allowance_name} (${a.allowance_code})
-                      ${
-												isFixed
-													? '<span style="font-size: 12px; color: #666;">[Fixed]</span>'
-													: ""
-											}
-                    </label>
-                    ${fieldHtml}
-                  </div>`;
-				})
-				.join("");
-		}
+      const amountField = isFixed
+        ? `<input type="number"
+            class="allowance-amount"
+            data-id="${a.id}"
+            value="${this.currentEditStaff?.allowances?.find(x => x.id === a.id)?.amount ?? a.default_amount}"
+            step="0.01"
+            min="0"
+            style="width: 90px; margin-left: auto;"
+            ${checked ? '' : 'disabled'}>`
+        : `<span style="font-size:12px; color:#666;">${a.default_amount}%</span>`;
 
-		if (deductionsContainer) {
-			deductionsContainer.innerHTML = this.deductions
-				.map((d) => {
-					const isFixed = d.type === "fixed";
+      return `
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <label style="flex:1; display:flex; gap:8px;">
+            <input type="checkbox"
+              class="allowance-checkbox"
+              value="${a.id}"
+              data-is-percentage="${a.is_percentage}"
+              ${checked}>
+            ${a.allowance_name} (${a.allowance_code})
+          </label>
+          ${amountField}
+        </div>`;
+    }).join("");
 
-					const fieldHtml = isFixed
-						? `<input type="number" class="deduction-amount" data-id="${d.id}" value="0" step="0.01" min="0" placeholder="Amount" style="width: 80px; margin-left: auto;">`
-						: ``;
+    document.querySelectorAll('.allowance-checkbox').forEach(cb => {
+      const amountInput = document.querySelector(`.allowance-amount[data-id="${cb.value}"]`);
+      if(amountInput) cb.addEventListener('change', () => { amountInput.disabled = !cb.checked; });
+    });
+  }
 
-					return `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                      <label style="display: flex; align-items: center; gap: 8px; flex: 1;">
-                        <input type="checkbox" class="deduction-checkbox" value="${
-													d.id
-												}" data-name="${d.deduction_name}">
-                        ${d.deduction_name} (${d.deduction_code})
-                        ${
-													isFixed
-														? '<span style="font-size: 12px; color: #666;">[Fixed]</span>'
-														: ""
-												}
-                      </label>
-                      ${fieldHtml}
-                    </div>`;
-				})
-				.join("");
-		}
-	}
+  // --- DEDUCTIONS ---
+if (deductionsContainer) {
+  const staffDeductionMap = new Map(
+    (this.currentEditStaff?.deductions || []).map(d => [d.id, d])
+  );
+
+  deductionsContainer.innerHTML = this.deductions.map(d => {
+    const isFixed = d.is_percentage === 0; // Fixed if not percentage
+    const checked = this.currentEditStaff?.deductions?.some(x => x.id === d.id) ? 'checked' : '';
+
+    const amountField = isFixed
+      ? `<input type="number"
+          class="deduction-amount"
+          data-id="${d.id}"
+          value="${staffDeductionMap.get(d.id)?.amount ?? d.default_amount}"
+          step="0.01"
+          min="0"
+          style="width: 90px; margin-left: auto;"
+          ${checked ? '' : 'disabled'}>`
+      : `<span style="font-size:12px; color:#666;">${d.default_amount}%</span>`;
+
+    return `
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+        <label style="flex:1; display:flex; gap:8px;">
+          <input type="checkbox"
+            class="deduction-checkbox"
+            value="${d.id}"
+            data-is-percentage="${d.is_percentage}"
+            ${checked}>
+          ${d.deduction_name} (${d.deduction_code})
+        </label>
+        ${amountField}
+      </div>`;
+  }).join("");
+
+  // Enable/disable input fields dynamically
+  document.querySelectorAll('.deduction-checkbox').forEach(cb => {
+    const amountInput = document.querySelector(`.deduction-amount[data-id="${cb.value}"]`);
+    if (amountInput) {
+      cb.addEventListener('change', () => {
+        amountInput.disabled = !cb.checked;
+      });
+    }
+  });
+}
+
+
+}
+
+
+	 applyStaffAllowances(staffAllowances = []) {
+    staffAllowances.forEach(a => {
+      const checkbox = document.querySelector(
+        `.allowance-checkbox[value="${a.id}"]`
+      );
+
+      if (!checkbox) return;
+
+      checkbox.checked = true;
+
+      if (a.is_percentage === 0) {
+        const amountInput = document.querySelector(
+          `.allowance-amount[data-id="${a.id}"]`
+        );
+        if (amountInput) {
+          amountInput.value = a.amount;
+        }
+      }
+    });
+  }
+
+  // ✅ ADD THIS
+  applyStaffDeductions(staffDeductions = []) {
+    staffDeductions.forEach(d => {
+      const checkbox = document.querySelector(
+        `.deduction-checkbox[value="${d.id}"]`
+      );
+
+      if (!checkbox) return;
+
+      checkbox.checked = true;
+
+      if (d.is_percentage === 0) {
+        const amountInput = document.querySelector(
+          `.deduction-amount[data-id="${d.id}"]`
+        );
+        if (amountInput) {
+          amountInput.value = d.amount;
+        }
+      }
+    });
+  }
 
 	attachEventListeners() {
 		const nextBtn = document.getElementById("nextStaffBtn");
@@ -415,9 +521,9 @@ class StaffsPage {
 						}</td>
             <td>${staff.department_name || "-"}</td>
             <td>${staff.designation_name || "-"}</td>
-            <td>${staff.salary_currency} ${Number.parseFloat(
-							staff.basic_salary
-						).toFixed(2)}</td>
+           <td>${staff.salary_currency} ${Number.parseFloat(staff.basic_salary)
+			.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+
             <td><span class="badge ${
 							staff.is_archived ? "badge-danger" : "badge-success"
 						}">${staff.is_archived ? "Archived" : "Active"}</span></td>
@@ -501,52 +607,13 @@ class StaffsPage {
 			console.log("[v0] Staff allowances:", staff.allowances);
 			console.log("[v0] Staff deductions:", staff.deductions);
 
-			// Now check the boxes after they're created - match by allowance_id
-			if (staff.allowances && Array.isArray(staff.allowances)) {
-				this.selectedAllowances = staff.allowances.map((a) => a.id);
-				
-				console.log("[v0] Trying to check allowances:", this.selectedAllowances);
-				
-				staff.allowances.forEach((a) => {
-					console.log("[v0] Looking for checkbox with value:", a.id);
-					const checkbox = document.querySelector(
-						`.allowance-checkbox[value="${a.id}"]`
-					);
-					console.log("[v0] Found checkbox:", checkbox);
-					
-					if (checkbox) {
-						checkbox.checked = true;
-						if (a.is_percentage === 0 && a.amount) {
-							const amountInput = document.querySelector(
-								`.allowance-amount[data-id="${a.id}"]`
-							);
-							if (amountInput) {
-								amountInput.value = a.amount;
-							}
-						}
-					}
-				});
-			}
+			
+							if (staff) {
+				this.currentEditStaff = staff; // ✅ store staff being edited
+				}
 
-			if (staff.deductions && Array.isArray(staff.deductions)) {
-				this.selectedDeductions = staff.deductions.map((d) => d.id);
-				staff.deductions.forEach((d) => {
-					const checkbox = document.querySelector(
-						`.deduction-checkbox[value="${d.id}"]`
-					);
-					if (checkbox) {
-						checkbox.checked = true;
-						if (d.is_percentage === 0 && d.amount) {
-							const amountInput = document.querySelector(
-								`.deduction-amount[data-id="${d.id}"]`
-							);
-							if (amountInput) {
-								amountInput.value = d.amount;
-							}
-						}
-					}
-				});
-			}
+				this.populateAllowancesAndDeductions();
+
 		}
 
 		modal.classList.add("active");
@@ -562,43 +629,46 @@ class StaffsPage {
 	}
 
 	nextStep() {
-		if (this.currentStep === 1) {
-			// Step 1 validation
-			const requiredFields = [
-				"staffNumber",
-				"firstName",
-				"lastName",
-				"ssnit",
-				"ghanacard",
-				"departmentId",
-				"designationId",
-				"status",
-				"basicSalary",
-			];
+  if (this.currentStep === 1) {
+    // Step 1 validation
+    const requiredFields = [
+      "staffNumber",
+      "firstName",
+      "lastName",
+      "ssnit",
+      "ghanacard",
+      "departmentId",
+      "designationId",
+      "status",
+      "basicSalary",
+    ];
 
-			for (const id of requiredFields) {
-				const el = document.getElementById(id);
-				if (!el || !el.value.trim()) {
-					this.crudManager.showMessage(
-						"Please fill in all required fields in Step 1",
-						"error"
-					);
-					return;
-				}
-			}
+    for (const id of requiredFields) {
+      const el = document.getElementById(id);
+      if (!el || !el.value.trim()) {
+        this.crudManager.showMessage(
+          "Please fill in all required fields in Step 1",
+          "error"
+        );
+        return;
+      }
+    }
 
-			// Populate allowances only after validation passes
-			this.populateAllowancesAndDeductions();
+    // ✅ SHOW STAFF SUMMARY HERE
+    this.updateStaffSummary();
 
-			this.currentStep = 2;
-			this.updateStepDisplay();
-			console.log("[v2] Moved to step:", this.currentStep);
-		} else if (this.currentStep === 2) {
-			this.currentStep = 3;
-			this.updateStepDisplay();
-			console.log("[v2] Moved to step:", this.currentStep);
-		}
-	}
+    // Populate allowances
+    this.populateAllowancesAndDeductions();
+
+    this.currentStep = 2;
+    this.updateStepDisplay();
+  } 
+  else if (this.currentStep === 2) {
+    this.currentStep = 3;
+    this.updateStepDisplay();
+  }
+}
+
 
 	previousStep() {
 		if (this.currentStep > 1) {
@@ -608,6 +678,10 @@ class StaffsPage {
 	}
 
 	updateStepDisplay() {
+		if (this.currentStep === 1) {
+  document.getElementById("staffSummary").classList.add("hidden");
+}
+
 		document.getElementById("step1").style.display = "none";
 		document.getElementById("step2").style.display = "none";
 		document.getElementById("step3").style.display = "none";
@@ -664,33 +738,32 @@ class StaffsPage {
 		}
 
 		const selectedAllowances = [];
+document.querySelectorAll(".allowance-checkbox:checked").forEach(cb => {
+  const allowanceId = parseInt(cb.value);
+  const allowance = this.allowances.find(a => a.id === allowanceId);
+  if (!allowance) return;
 
-		Array.from(
-			document.querySelectorAll(".allowance-checkbox:checked")
-		).forEach((cb) => {
-			const allowanceId = Number.parseInt(cb.value);
-			const allowance = this.allowances.find((a) => a.id === allowanceId);
+  if (allowance.is_percentage === 1) {
+    selectedAllowances.push({
+      id: allowanceId,
+      amount: allowance.default_amount, // % value
+      is_percentage: 1
+    });
+  } else {
+    const amountInput = document.querySelector(`.allowance-amount[data-id="${allowanceId}"]`);
+    const fixedAmount = amountInput && amountInput.value !== ""
+      ? parseFloat(amountInput.value)
+      : allowance.default_amount;
 
-			if (allowance && allowance.is_percentage === 1) {
-				selectedAllowances.push({
-					id: allowanceId,
-					amount: allowance.default_amount,
-					is_percentage: 1,
-				});
-			} else {
-				const amountInput = document.querySelector(
-					`.allowance-amount[data-id="${allowanceId}"]`
-				);
-				const fixedAmount = amountInput
-					? Number.parseFloat(amountInput.value) || allowance.default_amount
-					: 0;
-				selectedAllowances.push({
-					id: allowanceId,
-					amount: fixedAmount,
-					is_percentage: 0,
-				});
-			}
-		});
+    selectedAllowances.push({
+      id: allowanceId,
+      amount: fixedAmount,  // customized per staff
+      is_percentage: 0
+    });
+  }
+});
+
+
 
 		const selectedDeductions = [];
 

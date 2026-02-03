@@ -1,9 +1,4 @@
-// const API_ENDPOINTS = {
-//   CURRENCY_RATES: "/api/currency-rates",
-//   STAFFS: "/api/staffs",
-//   PAYROLL_ENTRIES: "/api/payroll-entries",
-// }
-
+// PayrollManager class - handles payroll calculations and API operations
 class PayrollManager {
 	constructor() {
 		this.currentPeriod = null;
@@ -20,7 +15,7 @@ class PayrollManager {
 	async loadCurrencyRate() {
 		try {
 			const response = await window.ApiService.get(
-				API_ENDPOINTS.CURRENCY_RATES + "?current=true"
+				window.API_ENDPOINTS.CURRENCY_RATES + "?current=true"
 			);
 			if (response.success && response.data) {
 				this.currencyRate = Number.parseFloat(response.data.rate);
@@ -33,7 +28,7 @@ class PayrollManager {
 	async searchStaff(staffNumber) {
 		try {
 			const response = await window.ApiService.get(
-				API_ENDPOINTS.STAFFS + `?staff_number=${staffNumber}`
+				window.API_ENDPOINTS.STAFFS + `?staff_number=${staffNumber}`
 			);
 			if (response.success && response.data) {
 				this.currentStaff = response.data;
@@ -53,18 +48,18 @@ class PayrollManager {
 		// Calculate allowances
 		allowances.forEach((allowance) => {
 			if (allowance.is_percentage) {
-				totalAllowances += (basicSalary * allowance.percentage_value) / 100;
+				totalAllowances += (basicSalary * parseFloat(allowance.default_amount)) / 100;
 			} else {
-				totalAllowances += Number.parseFloat(allowance.amount);
+				totalAllowances += parseFloat(allowance.default_amount) || 0;
 			}
 		});
 
 		// Calculate deductions
 		deductions.forEach((deduction) => {
 			if (deduction.is_percentage) {
-				totalDeductions += (basicSalary * deduction.percentage_value) / 100;
+				totalDeductions += (basicSalary * parseFloat(deduction.default_amount)) / 100;
 			} else {
-				totalDeductions += Number.parseFloat(deduction.amount);
+				totalDeductions += parseFloat(deduction.default_amount) || 0;
 			}
 		});
 
@@ -100,7 +95,7 @@ class PayrollManager {
 
 		try {
 			const response = await window.ApiService.post(
-				API_ENDPOINTS.PAYROLL_ENTRIES,
+				window.API_ENDPOINTS.PAYROLL_ENTRIES,
 				payrollData
 			);
 			return response;
@@ -120,13 +115,97 @@ class PayrollManager {
 
 		try {
 			const response = await window.ApiService.put(
-				API_ENDPOINTS.PAYROLL_ENTRIES,
+				window.API_ENDPOINTS.PAYROLL_ENTRIES,
 				payrollData
 			);
 			return response;
 		} catch (error) {
 			console.error("Error updating payroll entry:", error);
 			throw error;
+		}
+	}
+
+	async savePayrollEntriesBulk(periodId, staffEntries) {
+		if (!Array.isArray(staffEntries) || staffEntries.length === 0) {
+			return {
+				success: false,
+				message: "Staff entries array is empty or invalid",
+				data: {
+					successCount: 0,
+					failureCount: 0,
+					results: [],
+				},
+			};
+		}
+
+		try {
+			// Prepare payload for bulk endpoint
+			const payload = {
+				payroll_period_id: periodId,
+				entries: staffEntries.map((entry) => ({
+					staff_id: entry.staffId,
+					basic_salary: Number.parseFloat(entry.basicSalary),
+					allowances: entry.allowances || [],
+					deductions: entry.deductions || [],
+				})),
+			};
+
+			// Send all entries in a single bulk request
+			const response = await window.ApiService.post(
+				window.API_ENDPOINTS.PAYROLL_BULK_ENTRIES,
+				payload
+			);
+
+			if (!response.success) {
+				return {
+					success: false,
+					message: response.message || "Failed to process bulk payroll",
+					data: {
+						successCount: 0,
+						failureCount: staffEntries.length,
+						totalCount: staffEntries.length,
+						results: staffEntries.map((entry) => ({
+							staffId: entry.staffId,
+							success: false,
+							error: response.message || "Bulk operation failed",
+							isDuplicate: false,
+						})),
+					},
+				};
+			}
+
+			// Parse results from API response
+			const results = response.data?.results || [];
+			const successCount = results.filter((r) => r.success).length;
+			const failureCount = results.filter((r) => !r.success).length;
+
+			return {
+				success: successCount > 0,
+				message: `Processed ${staffEntries.length} entries: ${successCount} successful, ${failureCount} failed`,
+				data: {
+					successCount,
+					failureCount,
+					totalCount: staffEntries.length,
+					results,
+				},
+			};
+		} catch (error) {
+			console.error("[v0] Error in savePayrollEntriesBulk:", error);
+			return {
+				success: false,
+				message: `Error: ${error.message}`,
+				data: {
+					successCount: 0,
+					failureCount: staffEntries.length,
+					totalCount: staffEntries.length,
+					results: staffEntries.map((entry) => ({
+						staffId: entry.staffId,
+						success: false,
+						error: error.message || "Unknown error occurred",
+						isDuplicate: false,
+					})),
+				},
+			};
 		}
 	}
 
@@ -148,3 +227,6 @@ class PayrollManager {
 
 // Export for use in other modules
 window.PayrollManager = PayrollManager;
+
+// Create a global instance for convenience
+window.payrollManagerInstance = new PayrollManager();

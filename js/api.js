@@ -1,33 +1,36 @@
+if (!window.API_ENDPOINTS) {
+  throw new Error("API_ENDPOINTS not loaded. Check script order.");
+}
+
 class ApiService {
+	
 	static async request(url, options = {}) {
-		const defaultOptions = {
-			headers: window.AuthService.getAuthHeaders(),
-		};
+  const token = window.AuthService.getToken();
 
-		const mergedOptions = {
-			...defaultOptions,
-			...options,
-			headers: {
-				...defaultOptions.headers,
-				...options.headers,
-			},
-		};
+  const headers = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {})
+  };
 
-		try {
-			const response = await fetch(url, mergedOptions);
-			const data = await response.json();
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...headers,
+      ...(options.headers || {})
+    }
+  });
 
-			if (response.status === 401) {
-				window.AuthService.logout();
-				return;
-			}
+  const text = await response.text();
 
-			return data;
-		} catch (error) {
-			console.error("API Error:", error);
-			throw error;
-		}
-	}
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    console.error("API returned non-JSON:", text);
+    throw new Error("Invalid server response");
+  }
+}
+
+
 
 	static async get(url) {
 		return this.request(url, { method: "GET" });

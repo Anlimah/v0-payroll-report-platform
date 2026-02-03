@@ -36,7 +36,11 @@ try {
             }
             
             $allowQuery = "SELECT a.*, 
-                           CASE WHEN sa.id IS NOT NULL THEN 1 ELSE 0 END as is_applicable
+                           CASE WHEN sa.id IS NOT NULL THEN 1 ELSE 0 END as is_applicable,
+                           COALESCE(sa.amount, a.default_amount) as amount,
+                           COALESCE(sa.is_percentage, a.is_percentage) as is_percentage,
+                           sa.id as staff_allowance_id,
+                           sa.staff_id as assigned_staff_id
                            FROM allowances a
                            LEFT JOIN staff_allowances sa ON a.id = sa.allowance_id AND sa.staff_id = :staff_id
                            WHERE a.is_archived = FALSE
@@ -47,7 +51,11 @@ try {
             $allowances = $allowStmt->fetchAll();
             
             $deductQuery = "SELECT d.*, 
-                            CASE WHEN sd.id IS NOT NULL THEN 1 ELSE 0 END as is_applicable
+                            CASE WHEN sd.id IS NOT NULL THEN 1 ELSE 0 END as is_applicable,
+                            COALESCE(sd.amount, d.default_amount) as amount,
+                            COALESCE(sd.is_percentage, d.is_percentage) as is_percentage,
+                            sd.id as staff_deduction_id,
+                            sd.staff_id as assigned_staff_id
                             FROM deductions d
                             LEFT JOIN staff_deductions sd ON d.id = sd.deduction_id AND sd.staff_id = :staff_id
                             WHERE d.is_archived = FALSE

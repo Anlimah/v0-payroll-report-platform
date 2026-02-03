@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost/v0-payroll-report-platform/api";
+const API_BASE_URL = "http://localhost/payroll_system/api";
 
 const API_ENDPOINTS = {
 	// Auth
@@ -29,12 +29,19 @@ const API_ENDPOINTS = {
 
 	// Payroll
 	PAYROLL_PERIODS: `${API_BASE_URL}/payroll/periods.php`,
+	PAYROLL_GET_OR_CREATE_PERIOD: `${API_BASE_URL}/payroll/get-or-create-period.php`,
+	PAYROLL_LOAD_ENTRIES: `${API_BASE_URL}/payroll/load-payroll-entries.php`,
 	PAYROLL_ENTRIES: `${API_BASE_URL}/payroll/entries.php`,
+	PAYROLL_BULK_ENTRIES: `${API_BASE_URL}/payroll/bulk-entries.php`,
 	PAYROLL_STAFF_SEARCH: `${API_BASE_URL}/payroll/staff-search.php`,
 	PAYROLL_STAFF_ALLOWANCES: `${API_BASE_URL}/payroll/staff-allowances.php`,
 	PAYROLL_STAFF_DEDUCTIONS: `${API_BASE_URL}/payroll/staff-deductions.php`,
 	PAYROLL_PROCESS_DETAILS: `${API_BASE_URL}/payroll/process-details.php`,
 	PAYROLL_LIST_BY_DEPARTMENT: `${API_BASE_URL}/payroll/list-by-department.php`,
+
+
+
+
 
 	// Reports
 	REPORTS: `${API_BASE_URL}/reports/index.php`,

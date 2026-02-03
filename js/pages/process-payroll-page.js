@@ -1,305 +1,675 @@
 class ProcessPayrollPage {
   constructor() {
-    this.crudManager = new window.CRUDManager(window.API_ENDPOINTS.PAYROLL_ENTRIES, "payroll")
-    this.departments = []
-    this.selectedDepartment = ""
-    this.staffList = []
-    this.selectedPeriodMonth = new Date().getMonth() + 1
-    this.selectedPeriodYear = new Date().getFullYear()
+    this.payrollManager = window.PayrollManager ? new window.PayrollManager() : null;
+    this.eligibleStaff = [];
+    this.payrollPeriodId = null;
+    this.selectedMonth = null;
+    this.selectedYear = null;
+
+    if (!this.payrollManager) {
+      console.error("[v0] PayrollManager not available. Ensure payroll.js is loaded.");
+    }
   }
 
   render() {
     return `
       <div class="card">
         <div class="card-header">
-          <h2 class="card-title">Process Payroll</h2>
-          <div style="display: flex; gap: 12px; align-items: center;">
-            <div>
-              <label style="margin-right: 8px;">Period:</label>
-              <select id="periodMonthSelect" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; width: 100px;">
-                ${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${i + 1 === this.selectedPeriodMonth ? "selected" : ""}>${String(i + 1).padStart(2, "0")}</option>`).join("")}
-              </select>
-              <select id="periodYearSelect" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; width: 100px; margin-left: 8px;">
-                ${Array.from({ length: 5 }, (_, i) => {
-                  const year = new Date().getFullYear() - i
-                  return `<option value="${year}" ${year === this.selectedPeriodYear ? "selected" : ""}>${year}</option>`
-                }).join("")}
-              </select>
+          <h2 class="card-title">Process Bulk Payroll</h2>
+        </div>
+        
+        <div id="emptyState" style="padding: 40px; text-align: center;">
+          <div style="max-width: 600px; margin: 0 auto;">
+            <h3>Process Payroll</h3>
+            <p style="color: var(--text-secondary); margin: 16px 0;">Select a month and year to load eligible staff for payroll processing.</p>
+            
+            <div style="display: flex; gap: 12px; margin: 24px 0; justify-content: center;">
+              <div>
+                <label style="display: block; font-size: 14px; margin-bottom: 8px;">Month</label>
+                <select id="payrollMonth" style="padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">
+                  <option value="">Select Month</option>
+                  <option value="1">January</option>
+                  <option value="2">February</option>
+                  <option value="3">March</option>
+                  <option value="4">April</option>
+                  <option value="5">May</option>
+                  <option value="6">June</option>
+                  <option value="7">July</option>
+                  <option value="8">August</option>
+                  <option value="9">September</option>
+                  <option value="10">October</option>
+                  <option value="11">November</option>
+                  <option value="12">December</option>
+                </select>
+              </div>
+              
+              <div>
+                <label style="display: block; font-size: 14px; margin-bottom: 8px;">Year</label>
+                <input type="number" id="payrollYear" placeholder="YYYY" style="padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); width: 120px;">
+              </div>
             </div>
-            <select id="departmentFilterSelect" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; flex: 1; max-width: 300px;">
-              <option value="">All Departments</option>
-            </select>
+            
+            <button class="btn btn-primary" id="loadStaffBtn" style="margin-top: 16px;">Load Eligible Staff</button>
           </div>
         </div>
         
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Staff Number</th>
-                <th>Full Name</th>
-                <th>Department</th>
-                <th>Designation</th>
-                <th>Currency</th>
-                <th>Basic Salary</th>
-                <th>Leave Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="payrollStaffTableBody">
-              <tr>
-                <td colspan="8" style="text-align: center;">Loading...</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Payroll Breakdown Modal -->
-      <div class="modal" id="payrollBreakdownModal">
-        <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
-          <div class="modal-header">
-            <h3 class="modal-title">Payroll Breakdown</h3>
-            <button class="modal-close" id="closePayrollBreakdownModal">&times;</button>
+        <div id="bulkPayrollContainer" style="display: none;">
+          <div style="margin-bottom: 16px; padding: 16px; background: var(--bg-secondary); border-radius: 4px;">
+            <p style="margin: 0; font-size: 14px;">
+              <strong>Period:</strong> <span id="periodInfo">-</span>
+            </p>
           </div>
-          <div class="modal-body">
-            <div id="payrollBreakdownContent">
-              <!-- Content will be populated here -->
-            </div>
+          
+          <div class="table-container">
+            <table id="bulkPayrollTable">
+              <thead>
+                <tr>
+                  <th>Staff #</th>
+                  <th>Name</th>
+                  <th>Department</th>
+                  <th>Designation</th>
+                  <th>Basic Salary</th>
+                  <th>Allowances</th>
+                  <th>Deductions</th>
+                  <th>Gross Salary</th>
+                  <th>Net Salary</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="bulkPayrollTbody">
+                <!-- Populated by renderBulkPayrollTable() -->
+              </tbody>
+            </table>
           </div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" id="closePayrollBreakdownBtn">Close</button>
+          
+          <div style="display: flex; gap: 12px; margin-top: 24px; justify-content: flex-end;">
+            <button class="btn btn-secondary" id="cancelBulkBtn">Cancel</button>
+            <button class="btn btn-primary" id="submitBulkBtn">Submit Payroll</button>
           </div>
         </div>
       </div>
-    `
+    `;
   }
 
-  async loadDepartments() {
-    try {
-      const response = await window.ApiService.get(window.API_ENDPOINTS.DEPARTMENTS)
-      if (response.success) {
-        this.departments = response.data.filter((d) => !d.is_archived)
-        this.populateDepartmentSelect()
-      }
-    } catch (error) {
-      console.error("[v0] Error loading departments:", error)
-    }
+  getApiService() {
+    return window.ApiService;
   }
 
-  populateDepartmentSelect() {
-    const select = document.getElementById("departmentFilterSelect")
-    if (select) {
-      select.innerHTML =
-        '<option value="">All Departments</option>' +
-        this.departments.map((d) => `<option value="${d.id}">${d.department_name}</option>`).join("")
-    }
-  }
-
-  async loadStaffForProcessPayroll() {
-    try {
-      let url = window.API_ENDPOINTS.PAYROLL_LIST_BY_DEPARTMENT
-      if (this.selectedDepartment) {
-        url += `?department_id=${this.selectedDepartment}`
-      }
-
-      const response = await window.ApiService.get(url)
-      const tbody = document.getElementById("payrollStaffTableBody")
-
-      if (response.success && response.data.length > 0) {
-        this.staffList = response.data
-        tbody.innerHTML = response.data
-          .map(
-            (staff) => `
-          <tr>
-            <td><strong>${staff.staff_number}</strong></td>
-            <td>${staff.first_name} ${staff.last_name}</td>
-            <td>${staff.department_name || "-"}</td>
-            <td>${staff.designation_name || "-"}</td>
-            <td><span class="badge badge-info">${staff.salary_currency}</span></td>
-            <td>${staff.salary_currency} ${Number.parseFloat(staff.basic_salary).toFixed(2)}</td>
-            <td><span class="badge ${
-              staff.on_bonded_or_study_leave ? "badge-warning" : "badge-success"
-            }">${staff.on_bonded_or_study_leave ? "On Leave" : "Active"}</span></td>
-            <td>
-              <button class="btn btn-sm btn-primary" onclick="processPayrollPage.viewPayrollBreakdown(${staff.id})">View Breakdown</button>
-            </td>
-          </tr>
-        `,
-          )
-          .join("")
-      } else {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="8" style="text-align: center;">No staff members found</td>
-          </tr>
-        `
-      }
-    } catch (error) {
-      console.error("[v0] Error loading staff:", error)
-      alert("Failed to load staff members")
-    }
-  }
-
-  async viewPayrollBreakdown(staffId) {
-    try {
-      const params = new URLSearchParams({
-        staff_id: staffId,
-        period_month: this.selectedPeriodMonth,
-        period_year: this.selectedPeriodYear,
-      })
-
-      const response = await window.ApiService.get(
-        `${window.API_ENDPOINTS.PAYROLL_PROCESS_DETAILS}?${params.toString()}`,
-      )
-
-      if (response.success && response.data) {
-        this.displayPayrollBreakdown(response.data)
-        const modal = document.getElementById("payrollBreakdownModal")
-        modal.classList.add("active")
-      }
-    } catch (error) {
-      console.error("[v0] Error fetching payroll breakdown:", error)
-      alert("Failed to load payroll breakdown")
-    }
-  }
-
-  displayPayrollBreakdown(data) {
-    const content = document.getElementById("payrollBreakdownContent")
-    const staff = data.staff
-    const breakdown = data.data
-
-    // Build allowances HTML
-    let allowancesHTML = "<strong>Allowances:</strong><ul style='margin: 8px 0 16px 20px;'>"
-    if (breakdown.allowances && breakdown.allowances.length > 0) {
-      breakdown.allowances.forEach((allowance) => {
-        const amount = allowance.calculated_amount.toFixed(2)
-        const typeLabel = allowance.type === "percent" ? `(${allowance.amount}%)` : ""
-        allowancesHTML += `<li>${allowance.allowance_name} ${typeLabel}: GHS ${amount}</li>`
-      })
-    } else {
-      allowancesHTML += "<li>No allowances</li>"
-    }
-    allowancesHTML += "</ul>"
-
-    // Build deductions HTML
-    let deductionsHTML = "<strong>Deductions:</strong><ul style='margin: 8px 0 16px 20px;'>"
-    if (breakdown.deductions && breakdown.deductions.length > 0) {
-      breakdown.deductions.forEach((deduction) => {
-        const amount = deduction.calculated_amount.toFixed(2)
-        const typeLabel = deduction.type === "percent" ? `(${deduction.amount}%)` : ""
-        deductionsHTML += `<li>${deduction.deduction_name} ${typeLabel}: GHS ${amount}</li>`
-      })
-    } else {
-      deductionsHTML += "<li>No deductions</li>"
-    }
-    deductionsHTML += "</ul>"
-
-    // Build exchange rate info
-    let exchangeRateHTML = ""
-    if (breakdown.salary_currency === "USD") {
-      exchangeRateHTML = `
-        <div style="background: #f0f8ff; padding: 12px; border-radius: 4px; margin: 12px 0;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <span><strong>Exchange Rate Used:</strong></span>
-            <span>1 USD = GHS ${breakdown.exchange_rate.toFixed(4)}</span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span><strong>Net Salary (GHS equivalent):</strong></span>
-            <strong style="color: #28a745;">GHS ${(breakdown.net_salary * breakdown.exchange_rate).toFixed(2)}</strong>
-          </div>
-        </div>
-      `
-    }
-
-    content.innerHTML = `
-      <div style="margin-bottom: 20px;">
-        <h4>${staff.first_name} ${staff.last_name} (${staff.staff_number})</h4>
-        <p><strong>Department:</strong> ${staff.department_name || "-"}</p>
-        <p><strong>Designation:</strong> ${staff.designation_name || "-"}</p>
-        <p><strong>Status:</strong> ${staff.status} | <strong>Leave Status:</strong> ${staff.on_bonded_or_study_leave ? "On Leave" : "Active"}</p>
-      </div>
-
-      <div style="background: #f5f5f5; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-          <span>Basic Salary (${breakdown.salary_currency}):</span>
-          <strong>${breakdown.basic_salary.toFixed(2)}</strong>
-        </div>
-        ${
-          breakdown.salary_currency === "USD"
-            ? `
-          <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 12px; color: #666;">
-            <span>Basic Salary (GHS):</span>
-            <span>${breakdown.basic_salary_local.toFixed(2)}</span>
-          </div>
-        `
-            : ""
-        }
-        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-          <span>Total Allowances:</span>
-          <strong style="color: green;">+${breakdown.total_allowances.toFixed(2)}</strong>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-          <span>Gross Salary:</span>
-          <strong>${breakdown.gross_salary.toFixed(2)}</strong>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-          <span>Total Deductions:</span>
-          <strong style="color: red;">-${breakdown.total_deductions.toFixed(2)}</strong>
-        </div>
-        <hr>
-        <div style="display: flex; justify-content: space-between;">
-          <span style="font-weight: bold;">Net Salary (${breakdown.salary_currency}):</span>
-          <strong style="font-size: 16px; color: #007bff;">${breakdown.net_salary.toFixed(2)}</strong>
-        </div>
-        ${exchangeRateHTML}
-      </div>
-
-      <div style="margin-bottom: 15px;">
-        ${allowancesHTML}
-      </div>
-
-      <div>
-        ${deductionsHTML}
-      </div>
-    `
-  }
-
-  attachEventListeners() {
-    document.getElementById("departmentFilterSelect").addEventListener("change", (e) => {
-      this.selectedDepartment = e.target.value
-      this.loadStaffForProcessPayroll()
-    })
-
-    document.getElementById("periodMonthSelect").addEventListener("change", (e) => {
-      this.selectedPeriodMonth = Number.parseInt(e.target.value)
-    })
-
-    document.getElementById("periodYearSelect").addEventListener("change", (e) => {
-      this.selectedPeriodYear = Number.parseInt(e.target.value)
-    })
-
-    document.getElementById("closePayrollBreakdownModal").addEventListener("click", () => {
-      document.getElementById("payrollBreakdownModal").classList.remove("active")
-    })
-
-    document.getElementById("closePayrollBreakdownBtn").addEventListener("click", () => {
-      document.getElementById("payrollBreakdownModal").classList.remove("active")
-    })
-
-    // Close modal when clicking outside
-    document.getElementById("payrollBreakdownModal").addEventListener("click", (e) => {
-      if (e.target.id === "payrollBreakdownModal") {
-        document.getElementById("payrollBreakdownModal").classList.remove("active")
-      }
-    })
+  getApiEndpoints() {
+    return window.API_ENDPOINTS;
   }
 
   async init() {
-    await this.loadDepartments()
-    this.attachEventListeners()
-    await this.loadStaffForProcessPayroll()
+    this.attachEventListeners();
+    
+    // Safely set display properties only if elements exist
+    const emptyState = document.getElementById("emptyState");
+    const bulkContainer = document.getElementById("bulkPayrollContainer");
+    
+    if (emptyState) {
+      emptyState.style.display = "block";
+    }
+    if (bulkContainer) {
+      bulkContainer.style.display = "none";
+    }
+  }
+
+  /* -------- LOAD ELIGIBLE STAFF FOR BULK PROCESSING -------- */
+  async loadEligibleStaff() {
+    const month = document.getElementById("payrollMonth").value;
+    const year = document.getElementById("payrollYear").value;
+
+    if (!month || !year) {
+      alert("Please select month and year");
+      return;
+    }
+
+    this.selectedMonth = parseInt(month);
+    this.selectedYear = parseInt(year);
+
+    try {
+      const apiService = this.getApiService();
+      const apiEndpoints = this.getApiEndpoints();
+
+      if (!apiService || !apiEndpoints) {
+        alert("API Service not properly initialized");
+        return;
+      }
+
+      // Step 1: Get or create payroll period
+      const periodRes = await apiService.get(
+        `${apiEndpoints.PAYROLL_GET_OR_CREATE_PERIOD}?month=${this.selectedMonth}&year=${this.selectedYear}`
+      );
+
+      if (!periodRes.success || !periodRes.data) {
+        alert("Failed to get or create payroll period");
+        return;
+      }
+
+      const period = periodRes.data;
+      this.payrollPeriodId = period.id;
+
+      // Step 2: Load payroll entries or eligible staff based on what exists
+      const loadRes = await apiService.get(
+        `${apiEndpoints.PAYROLL_LOAD_ENTRIES}?period_id=${this.payrollPeriodId}`
+      );
+
+      if (!loadRes.success) {
+        alert("Failed to load payroll data");
+        return;
+      }
+
+      if (loadRes.entries_exist) {
+        // Path A: Entries already exist - load from payroll tables
+        this.eligibleStaff = loadRes.data.map((item) => {
+          const entry = item.payroll_entry;
+          const allowances = item.allowances || [];
+          const deductions = item.deductions || [];
+
+          return {
+            id: entry.staff_id,
+            payroll_entry_id: entry.id,
+            staffNumber: entry.staff_number,
+            name: `${entry.first_name} ${entry.last_name}`,
+            department: entry.department_name || "N/A",
+            designation: entry.designation_name || "N/A",
+            basicSalary: parseFloat(entry.basic_salary) || 0,
+            currency: entry.salary_currency || "GHS",
+            totalAllowances: parseFloat(entry.total_allowances) || 0,
+            totalDeductions: parseFloat(entry.total_deductions) || 0,
+            grossSalary: parseFloat(entry.gross_salary) || 0,
+            netSalary: parseFloat(entry.net_salary) || 0,
+            netSalaryGHS: parseFloat(entry.net_salary_ghs) || 0,
+            currencyRate: parseFloat(entry.currency_rate) || 1.0,
+            allowances: allowances.map((a) => ({
+              id: a.allowance_id,
+              allowance_name: a.allowance_name,
+              amount: parseFloat(a.amount) || 0,
+              is_percentage: a.is_percentage,
+              percentage_value: parseFloat(a.percentage_value) || 0,
+            })),
+            deductions: deductions.map((d) => ({
+              id: d.deduction_id,
+              deduction_name: d.deduction_name,
+              amount: parseFloat(d.amount) || 0,
+              is_percentage: d.is_percentage,
+              percentage_value: parseFloat(d.percentage_value) || 0,
+            })),
+            selectedAllowances: allowances.map((a) => a.allowance_id),
+            selectedDeductions: deductions.map((d) => d.deduction_id),
+            is_existing_entry: true,
+          };
+        });
+      } else {
+        // Path B: Entries don't exist - load eligible staff and their staff_allowances/staff_deductions
+        this.eligibleStaff = loadRes.data.map((item) => {
+          const staff = item.staff;
+          const allowances = item.allowances || [];
+          const deductions = item.deductions || [];
+
+          return {
+            id: staff.id,
+            payroll_entry_id: null,
+            staffNumber: staff.staff_number,
+            name: `${staff.first_name} ${staff.last_name}`,
+            department: staff.department_name || "N/A",
+            designation: staff.designation_name || "N/A",
+            basicSalary: parseFloat(staff.basic_salary) || 0,
+            currency: staff.salary_currency || "GHS",
+            totalAllowances: 0,
+            totalDeductions: 0,
+            grossSalary: 0,
+            netSalary: 0,
+            netSalaryGHS: 0,
+            currencyRate: parseFloat(staff.currency_rate) || 1.0,
+            allowances: allowances.map((a) => ({
+              id: a.allowance_id,
+              allowance_name: a.allowance_name,
+              amount: parseFloat(a.amount) || 0,
+              default_amount: parseFloat(a.default_amount) || 0,
+              is_percentage: a.is_percentage,
+            })),
+            deductions: deductions.map((d) => ({
+              id: d.deduction_id,
+              deduction_name: d.deduction_name,
+              amount: parseFloat(d.amount) || 0,
+              default_amount: parseFloat(d.default_amount) || 0,
+              is_percentage: d.is_percentage,
+            })),
+            selectedAllowances: allowances.map((a) => a.allowance_id),
+            selectedDeductions: deductions.map((d) => d.deduction_id),
+            is_existing_entry: false,
+          };
+        });
+
+        // Calculate payroll for new entries
+        this.eligibleStaff.forEach((staff) => {
+          this.calculateStaffPayroll(staff);
+        });
+      }
+
+      if (this.eligibleStaff.length === 0) {
+        alert("No eligible staff for this period");
+        return;
+      }
+
+      this.renderBulkPayrollTable();
+      document.getElementById("emptyState").style.display = "none";
+      document.getElementById("bulkPayrollContainer").style.display = "block";
+    } catch (error) {
+      console.error("[v0] Error loading eligible staff:", error);
+      alert(`Error loading eligible staff: ${error.message}`);
+    }
+  }
+
+  /* -------- CALCULATE PAYROLL FOR INDIVIDUAL STAFF -------- */
+  calculateStaffPayroll(staffData) {
+    const calc = this.payrollManager.calculatePayroll(
+      staffData.basicSalary,
+      staffData.allowances.filter((a) => staffData.selectedAllowances.includes(a.id)),
+      staffData.deductions.filter((d) => staffData.selectedDeductions.includes(d.id))
+    );
+
+    staffData.totalAllowances = calc.total_allowances;
+    staffData.totalDeductions = calc.total_deductions;
+    staffData.grossSalary = calc.gross_salary;
+    staffData.netSalary = calc.net_salary;
+    staffData.netSalaryGHS =
+      staffData.currency === "USD" ? calc.net_salary_ghs : calc.net_salary;
+  }
+
+  /* -------- RENDER BULK PAYROLL TABLE -------- */
+  renderBulkPayrollTable() {
+    const tbody = document.getElementById("bulkPayrollTbody");
+    if (!tbody) {
+      console.error("[v0] bulkPayrollTbody element not found");
+      return;
+    }
+    tbody.innerHTML = this.eligibleStaff
+      .map(
+        (staff, index) => `
+        <tr>
+          <td style="padding: 12px; border: 1px solid #ddd;">${staff.staffNumber || "N/A"}</td>
+          <td style="padding: 12px; border: 1px solid #ddd;">${staff.name || "N/A"}</td>
+          <td style="padding: 12px; border: 1px solid #ddd;">${staff.department || "N/A"}</td>
+          <td style="padding: 12px; border: 1px solid #ddd;">${staff.designation || "N/A"}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align:right;">
+            <input type="number" class="basicSalaryInput" data-index="${index}" value="${staff.basicSalary || 0}" style="width:100px; padding: 6px; border: 1px solid #ddd; border-radius: 4px;" step="0.01" min="0">
+          </td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align:right;">${this.payrollManager.formatCurrency(staff.totalAllowances || 0)}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align:right;">${this.payrollManager.formatCurrency(staff.totalDeductions || 0)}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align:right;">${this.payrollManager.formatCurrency(staff.grossSalary || 0)}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align:right;">${this.payrollManager.formatCurrency(staff.netSalary || 0)}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align:center;">
+            <button class="btn btn-sm btn-primary editStaffBtn" data-index="${index}" style="padding: 6px 12px;">Edit</button>
+          </td>
+        </tr>
+      `
+      )
+      .join("");
+
+    // Re-attach event listeners for edit buttons
+    document.querySelectorAll(".editStaffBtn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const index = parseInt(e.target.getAttribute("data-index"));
+        this.openStaffEditModal(index);
+      });
+    });
+  }
+
+  /* -------- OPEN STAFF EDIT MODAL -------- */
+  openStaffEditModal(index) {
+    const staff = this.eligibleStaff[index];
+
+    // Get all available allowances and deductions from the system
+    const apiService = this.getApiService();
+    const apiEndpoints = this.getApiEndpoints();
+
+    if (!apiService || !apiEndpoints) {
+      alert("API not initialized");
+      return;
+    }
+
+    // Build allowance checkboxes - ALL allowances with checked status based on selection
+    const allowanceCheckboxes = staff.allowances
+      .map(
+        (a, idx) => `
+        <div style="margin: 10px 0; padding: 12px; background: #f9f9f9; border-radius: 4px; display: flex; align-items: center; gap: 10px;">
+          <input type="checkbox" id="allow_${a.id}" class="allowanceCheckbox" data-id="${a.id}" data-is-percentage="${a.is_percentage}" ${staff.selectedAllowances.includes(a.id) ? "checked" : ""}>
+          <label for="allow_${a.id}" style="flex: 1; margin: 0;">
+            <strong>${a.allowance_name || `Allowance ${a.id}`}</strong>
+          </label>
+          ${
+            a.is_percentage
+              ? `<span style="color: #666; font-size: 12px; min-width: 80px;">${a.amount || a.default_amount || 0}%</span>`
+              : `<input type="number" class="allowanceAmountInput" data-id="${a.id}" value="${a.amount || a.default_amount || 0}" style="width: 100px; padding: 6px; border: 1px solid #ddd; border-radius: 4px;" step="0.01" min="0">`
+          }
+        </div>
+      `
+      )
+      .join("");
+
+    const deductionCheckboxes = staff.deductions
+      .map(
+        (d, idx) => `
+        <div style="margin: 10px 0; padding: 12px; background: #f9f9f9; border-radius: 4px; display: flex; align-items: center; gap: 10px;">
+          <input type="checkbox" id="deduct_${d.id}" class="deductionCheckbox" data-id="${d.id}" data-is-percentage="${d.is_percentage}" ${staff.selectedDeductions.includes(d.id) ? "checked" : ""}>
+          <label for="deduct_${d.id}" style="flex: 1; margin: 0;">
+            <strong>${d.deduction_name || `Deduction ${d.id}`}</strong>
+          </label>
+          ${
+            d.is_percentage
+              ? `<span style="color: #666; font-size: 12px; min-width: 80px;">${d.amount || d.default_amount || 0}%</span>`
+              : `<input type="number" class="deductionAmountInput" data-id="${d.id}" value="${d.amount || d.default_amount || 0}" style="width: 100px; padding: 6px; border: 1px solid #ddd; border-radius: 4px;" step="0.01" min="0">`
+          }
+        </div>
+      `
+      )
+      .join("");
+
+    const modal = document.createElement("div");
+    modal.id = "staffEditModal";
+    modal.style.cssText = `
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.4);
+      display: block;
+    `;
+
+    modal.innerHTML = `
+      <div style="
+        background-color: white;
+        margin: 3% auto;
+        padding: 20px;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 700px;
+        max-height: 85vh;
+        overflow-y: auto;
+      ">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2 style="margin: 0;">Edit Payroll - ${staff.name}</h2>
+          <span id="closeEditModal" style="font-size: 28px; cursor: pointer; font-weight: bold;">&times;</span>
+        </div>
+
+        <div style="margin-bottom: 20px; padding: 15px; background: #f0f0f0; border-radius: 4px;">
+          <p style="margin: 5px 0;"><strong>Staff:</strong> ${staff.staffNumber} - ${staff.name}</p>
+          <p style="margin: 5px 0;"><strong>Department:</strong> ${staff.department}</p>
+          <p style="margin: 5px 0;"><strong>Basic Salary:</strong> ${this.payrollManager.formatCurrency(staff.basicSalary)} ${staff.currency}</p>
+        </div>
+
+        <h3 style="margin: 20px 0 10px 0;">Allowances</h3>
+        <div id="allowancesContainer" style="margin-bottom: 20px;">
+          ${allowanceCheckboxes || '<p style="color: #999;">No allowances available</p>'}
+        </div>
+
+        <h3 style="margin: 20px 0 10px 0;">Deductions</h3>
+        <div id="deductionsContainer" style="margin-bottom: 20px;">
+          ${deductionCheckboxes || '<p style="color: #999;">No deductions available</p>'}
+        </div>
+
+        <div id="editSummary" style="background: #e8f5e9; padding: 15px; border-radius: 4px; margin: 20px 0; border: 2px solid #4caf50;">
+          <p style="margin: 5px 0;"><strong>Gross Salary:</strong> <span id="editGrossSalary" style="font-weight: bold; color: #1976d2;">${this.payrollManager.formatCurrency(staff.basicSalary)} ${staff.currency}</span></p>
+          <p style="margin: 5px 0;"><strong>Total Allowances:</strong> <span id="editTotalAllow" style="font-weight: bold; color: #4caf50;">+ ${this.payrollManager.formatCurrency(staff.totalAllowances)}</span></p>
+          <p style="margin: 5px 0;"><strong>Total Deductions:</strong> <span id="editTotalDeduct" style="font-weight: bold; color: #d32f2f;">- ${this.payrollManager.formatCurrency(staff.totalDeductions)}</span></p>
+          <p style="margin: 10px 0 0 0; padding-top: 10px; border-top: 2px solid #4caf50; font-weight: bold; color: #27ae60; font-size: 16px;"><strong>Net Salary:</strong> <span id="editNetSalary">${this.payrollManager.formatCurrency(staff.netSalary)} ${staff.currency}</span></p>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+          <button class="btn btn-secondary" id="cancelEditBtn" style="padding: 10px 20px;">Cancel</button>
+          <button class="btn btn-success" id="saveEditBtn" style="padding: 10px 20px;">Save Changes</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Event listeners
+    document.getElementById("closeEditModal").onclick = () => {
+      modal.remove();
+    };
+
+    document.getElementById("cancelEditBtn").onclick = () => {
+      modal.remove();
+    };
+
+    document.getElementById("saveEditBtn").onclick = () => {
+      this.saveStaffChanges(modal, staff, index);
+    };
+
+    // Live calculation on change - attach to ALL inputs and checkboxes
+    modal.querySelectorAll(".allowanceCheckbox, .deductionCheckbox, .allowanceAmountInput, .deductionAmountInput").forEach(
+      (elem) => {
+        elem.addEventListener("change", () => this.updateEditModalSummary(modal, staff));
+        elem.addEventListener("input", () => this.updateEditModalSummary(modal, staff));
+      }
+    );
+
+    // Prevent modal from closing when clicking inside it
+    modal.querySelector("div").onclick = (e) => {
+      e.stopPropagation();
+    };
+
+    window.onclick = (event) => {
+      if (event.target == modal) {
+        modal.remove();
+      }
+    };
+  }
+
+  saveStaffChanges(modal, staff, index) {
+    // Ensure selectedAllowances and selectedDeductions are initialized
+    if (!staff.selectedAllowances) {
+      staff.selectedAllowances = [];
+    }
+    if (!staff.selectedDeductions) {
+      staff.selectedDeductions = [];
+    }
+
+    const selectedAllowanceIds = Array.from(
+      modal.querySelectorAll(".allowanceCheckbox:checked")
+    ).map((cb) => parseInt(cb.getAttribute("data-id")));
+
+    const selectedDeductionIds = Array.from(
+      modal.querySelectorAll(".deductionCheckbox:checked")
+    ).map((cb) => parseInt(cb.getAttribute("data-id")));
+
+    // Update staff object with selected allowances and deductions
+    staff.selectedAllowances = selectedAllowanceIds;
+    staff.selectedDeductions = selectedDeductionIds;
+
+    // Update amounts for allowances and deductions
+    modal.querySelectorAll(".allowanceAmountInput").forEach((input) => {
+      const allowanceId = parseInt(input.getAttribute("data-id"));
+      const allowance = staff.allowances.find((a) => a.id === allowanceId);
+      if (allowance) {
+        allowance.amount = parseFloat(input.value) || allowance.default_amount || 0;
+      }
+    });
+
+    modal.querySelectorAll(".deductionAmountInput").forEach((input) => {
+      const deductionId = parseInt(input.getAttribute("data-id"));
+      const deduction = staff.deductions.find((d) => d.id === deductionId);
+      if (deduction) {
+        deduction.amount = parseFloat(input.value) || deduction.default_amount || 0;
+      }
+    });
+
+    // Recalculate payroll with updated values
+    this.calculateStaffPayroll(staff);
+    
+    // Update the table and close modal
+    this.renderBulkPayrollTable();
+    modal.remove();
+  }
+
+  /* -------- UPDATE EDIT MODAL SUMMARY ON CHANGES -------- */
+  updateEditModalSummary(modal, staff) {
+    const selectedAllowanceIds = Array.from(
+      modal.querySelectorAll(".allowanceCheckbox:checked")
+    ).map((cb) => parseInt(cb.getAttribute("data-id")));
+
+    const selectedDeductionIds = Array.from(
+      modal.querySelectorAll(".deductionCheckbox:checked")
+    ).map((cb) => parseInt(cb.getAttribute("data-id")));
+
+    let totalAllowances = 0;
+    let totalDeductions = 0;
+
+    // Calculate total allowances
+    selectedAllowanceIds.forEach((allowanceId) => {
+      const allowance = staff.allowances.find((a) => a.id === allowanceId);
+      if (allowance) {
+        if (allowance.is_percentage) {
+          // Percentage of basic salary
+          totalAllowances += (staff.basicSalary * allowance.amount) / 100;
+        } else {
+          // Fixed amount - get value from input if available
+          const input = modal.querySelector(`.allowanceAmountInput[data-id="${allowanceId}"]`);
+          const amount = input ? parseFloat(input.value) || allowance.amount || allowance.default_amount || 0 : (allowance.amount || allowance.default_amount || 0);
+          totalAllowances += amount;
+        }
+      }
+    });
+
+    // Calculate total deductions
+    selectedDeductionIds.forEach((deductionId) => {
+      const deduction = staff.deductions.find((d) => d.id === deductionId);
+      if (deduction) {
+        if (deduction.is_percentage) {
+          // Percentage of basic salary
+          totalDeductions += (staff.basicSalary * deduction.amount) / 100;
+        } else {
+          // Fixed amount - get value from input if available
+          const input = modal.querySelector(`.deductionAmountInput[data-id="${deductionId}"]`);
+          const amount = input ? parseFloat(input.value) || deduction.amount || deduction.default_amount || 0 : (deduction.amount || deduction.default_amount || 0);
+          totalDeductions += amount;
+        }
+      }
+    });
+
+    // Calculate gross and net salaries
+    const grossSalary = staff.basicSalary + totalAllowances;
+    const netSalary = grossSalary - totalDeductions;
+
+    // Update summary display
+    document.getElementById("editGrossSalary").textContent = `${this.payrollManager.formatCurrency(grossSalary)} ${staff.currency}`;
+    document.getElementById("editTotalAllow").textContent = `+ ${this.payrollManager.formatCurrency(totalAllowances)}`;
+    document.getElementById("editTotalDeduct").textContent = `- ${this.payrollManager.formatCurrency(totalDeductions)}`;
+    document.getElementById("editNetSalary").textContent = `${this.payrollManager.formatCurrency(netSalary)} ${staff.currency}`;
+  }
+
+  /* -------- SUBMIT BULK PAYROLL -------- */
+  async submitBulkPayroll() {
+    const apiService = this.getApiService();
+    const apiEndpoints = this.getApiEndpoints();
+
+    if (!this.eligibleStaff || this.eligibleStaff.length === 0) {
+      alert("No staff data to submit");
+      return;
+    }
+
+    if (!confirm(`Submit payroll for ${this.eligibleStaff.length} staff members?`)) {
+      return;
+    }
+
+    try {
+      const payrollData = this.eligibleStaff.map((staff) => ({
+        staff_id: staff.id,
+        payroll_entry_id: staff.payroll_entry_id,
+        basic_salary: staff.basicSalary,
+        total_allowances: staff.totalAllowances,
+        total_deductions: staff.totalDeductions,
+        gross_salary: staff.grossSalary,
+        net_salary: staff.netSalary,
+        net_salary_ghs: staff.netSalaryGHS,
+        currency_rate: staff.currencyRate,
+        allowances: staff.selectedAllowances.map((id) => {
+          const allowance = staff.allowances.find((a) => a.id === id);
+          return {
+            allowance_id: id,
+            amount: allowance?.amount || allowance?.default_amount || 0,
+            is_percentage: allowance?.is_percentage || 0,
+            percentage_value: allowance?.percentage_value || 0,
+          };
+        }),
+        deductions: staff.selectedDeductions.map((id) => {
+          const deduction = staff.deductions.find((d) => d.id === id);
+          return {
+            deduction_id: id,
+            amount: deduction?.amount || deduction?.default_amount || 0,
+            is_percentage: deduction?.is_percentage || 0,
+            percentage_value: deduction?.percentage_value || 0,
+          };
+        }),
+      }));
+
+      const submitRes = await apiService.post(apiEndpoints.PAYROLL_BULK_ENTRIES, {
+        payroll_period_id: this.payrollPeriodId,
+        entries: payrollData,
+      });
+
+      if (submitRes.success) {
+        alert("Payroll submitted successfully!");
+        this.eligibleStaff = [];
+        document.getElementById("bulkPayrollContainer").style.display = "none";
+        document.getElementById("emptyState").style.display = "block";
+      } else {
+        alert(`Failed to submit payroll: ${submitRes.message}`);
+      }
+    } catch (error) {
+      console.error("[v0] Error submitting payroll:", error);
+      alert(`Error submitting payroll: ${error.message}`);
+    }
+  }
+
+  /* -------- ATTACH EVENT LISTENERS -------- */
+  attachEventListeners() {
+    document.getElementById("loadStaffBtn")?.addEventListener("click", () => {
+      this.loadEligibleStaff();
+    });
+
+    document.getElementById("submitBulkBtn")?.addEventListener("click", () => {
+      this.submitBulkPayroll();
+    });
+
+    document.getElementById("cancelBulkBtn")?.addEventListener("click", () => {
+      const bulkContainer = document.getElementById("bulkPayrollContainer");
+      const emptyState = document.getElementById("emptyState");
+      if (bulkContainer) bulkContainer.style.display = "none";
+      if (emptyState) emptyState.style.display = "block";
+      this.eligibleStaff = [];
+    });
+
+    // Event delegation for edit buttons
+    document.addEventListener("click", (e) => {
+      if (e.target.classList.contains("editStaffBtn")) {
+        const index = parseInt(e.target.getAttribute("data-index"));
+        this.openStaffEditModal(index);
+      }
+    });
+
+    // Event delegation for basic salary changes
+    document.addEventListener("change", (e) => {
+      if (e.target.classList.contains("basicSalaryInput")) {
+        const index = parseInt(e.target.getAttribute("data-index"));
+        const staff = this.eligibleStaff[index];
+        if (staff) {
+          staff.basicSalary = parseFloat(e.target.value) || 0;
+          this.calculateStaffPayroll(staff);
+          this.renderBulkPayrollTable();
+        }
+      }
+    });
   }
 }
 
-window.processPayrollPage = new ProcessPayrollPage()
+// Initialize on page load
+window.addEventListener("DOMContentLoaded", () => {
+  window.processPayrollPage = new ProcessPayrollPage();
+  window.processPayrollPage.init();
+});

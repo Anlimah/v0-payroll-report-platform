@@ -1,20 +1,29 @@
 <?php
+header('Content-Type: application/json');
+
 function authenticate()
 {
     $headers = getallheaders();
+    $authHeader = null;
 
-    if (!isset($headers['Authorization'])) {
+    if (isset($headers['Authorization'])) {
+        $authHeader = $headers['Authorization'];
+    } elseif (isset($headers['authorization'])) {
+        $authHeader = $headers['authorization'];
+    } elseif (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
+    }
+
+    if (!$authHeader) {
         http_response_code(401);
         echo json_encode([
             'success' => false,
             'message' => 'No authorization token provided'
         ]);
-        exit();
+        exit;
     }
 
-    $token = str_replace('Bearer ', '', $headers['Authorization']);
-
-    // Decode JWT token
+    $token = str_replace('Bearer ', '', $authHeader);
     $decoded = verifyToken($token);
 
     if (!$decoded) {
@@ -23,29 +32,28 @@ function authenticate()
             'success' => false,
             'message' => 'Invalid or expired token'
         ]);
-        exit();
+        exit;
     }
 
+    // ✅ RETURN OBJECT (unchanged behaviour)
     return $decoded;
 }
 
 function requireAdmin($user)
 {
-    if ($user->role !== 'admin') {
+    if (!isset($user->role) || $user->role !== 'admin') {
         http_response_code(403);
         echo json_encode([
             'success' => false,
             'message' => 'Admin access required'
         ]);
-        exit();
+        exit;
     }
 }
 
 function verifyToken($token)
 {
-    // Simple JWT verification (in production, use a proper JWT library)
     $parts = explode('.', $token);
-
     if (count($parts) !== 3) {
         return false;
     }
@@ -57,24 +65,4 @@ function verifyToken($token)
     }
 
     return $payload;
-}
-
-function generateToken($user)
-{
-    $header = json_encode(['typ' => 'JWT', 'alg' => 'HS256']);
-    $payload = json_encode([
-        'user_id' => $user['id'],
-        'username' => $user['username'],
-        'role' => $user['role'],
-        'full_name' => $user['full_name'],
-        'exp' => time() + (60 * 60 * 8) // 8 hours
-    ]);
-
-    $base64UrlHeader = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
-    $base64UrlPayload = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
-
-    $signature = hash_hmac('sha256', $base64UrlHeader . "." . $base64UrlPayload, 'your-secret-key-change-this', true);
-    $base64UrlSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
-
-    return $base64UrlHeader . "." . $base64UrlPayload . "." . $base64UrlSignature;
 }
