@@ -38,10 +38,10 @@ try {
         $query = "SELECT 
                     a.id,
                     a.allowance_name,
-                    a.type,
+                    a.is_percentage,
                     a.default_amount,
                     a.allowed_on_leave,
-                    COALESCE(sa.custom_amount, a.default_amount) as custom_amount,
+                    COALESCE(sa.amount, a.default_amount) as custom_amount,
                     CASE WHEN sa.staff_id IS NOT NULL THEN 1 ELSE 0 END as is_assigned,
                     CASE WHEN :on_leave = 1 AND a.allowed_on_leave = 0 THEN 1 ELSE 0 END as is_disabled_on_leave
                   FROM allowances a
@@ -76,14 +76,16 @@ try {
 
         $customAmount = isset($data->custom_amount) ? $data->custom_amount : null;
         
-        $query = "INSERT INTO staff_allowances (staff_id, allowance_id, custom_amount)
-                  VALUES (:staff_id, :allowance_id, :custom_amount)
-                  ON DUPLICATE KEY UPDATE custom_amount = :custom_amount";
+        $query = "INSERT INTO staff_allowances (staff_id, allowance_id, amount, is_percentage)
+                  VALUES (:staff_id, :allowance_id, :amount, :is_percentage)
+                  ON DUPLICATE KEY UPDATE amount = :amount, is_percentage = :is_percentage";
         
         $stmt = $db->prepare($query);
         $stmt->bindParam(':staff_id', $data->staff_id);
         $stmt->bindParam(':allowance_id', $data->allowance_id);
-        $stmt->bindParam(':custom_amount', $customAmount);
+        $stmt->bindParam(':amount', $customAmount);
+        $isPercentage = isset($data->is_percentage) ? $data->is_percentage : 0;
+        $stmt->bindParam(':is_percentage', $isPercentage);
 
         if ($stmt->execute()) {
             http_response_code(201);
