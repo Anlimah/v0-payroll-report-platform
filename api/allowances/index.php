@@ -62,16 +62,20 @@ try {
             exit();
         }
 
-        $query = "INSERT INTO allowances (`allowance_code`, `allowance_name`, `description`, `is_percentage`, `default_amount`, `is_bonded`) 
-                  VALUES (:code, :name, :description, :is_percentage, :default_amount, :is_bonded)";
-        $stmt = $db->prepare($query);
+       $query = "INSERT INTO allowances 
+          (`allowance_code`, `allowance_name`, `description`, `is_percentage`, `default_amount`, `is_bonded`, `eligible_status`) 
+          VALUES 
+          (:code, :name, :description, :is_percentage, :default_amount, :is_bonded, :eligible_status)";
+            $stmt = $db->prepare($query);
 
-        $stmt->bindParam(':code', $data->allowance_code);
-        $stmt->bindParam(':name', $data->allowance_name);
-        $stmt->bindParam(':description', $data->description);
-        $stmt->bindParam(':is_percentage', $data->is_percentage);
-        $stmt->bindParam(':default_amount', $data->default_amount);
-        $stmt->bindParam('is_bonded', $data->bonded);
+            $stmt->bindParam(':code', $data->allowance_code);
+            $stmt->bindParam(':name', $data->allowance_name);
+            $stmt->bindParam(':description', $data->description);
+            $stmt->bindParam(':is_percentage', $data->is_percentage);
+            $stmt->bindParam(':default_amount', $data->default_amount);
+            $stmt->bindParam(':is_bonded', $data->bonded);
+            $stmt->bindParam(':eligible_status', $data->eligible_status); // <--- new line
+
 
         if ($stmt->execute()) {
             $logQuery = "INSERT INTO audit_logs (user_id, action, table_name, record_id) 
@@ -98,47 +102,61 @@ try {
     }
 
     // PUT - Update allowance
-    else if ($method === 'PUT') {
-        requireAdmin($user);
+else if ($method === 'PUT') {
+    requireAdmin($user);
 
-        $data = json_decode(file_get_contents("php://input"));
+    $data = json_decode(file_get_contents("php://input"));
 
-        if (!isset($data->id)) {
-            http_response_code(400);
-            echo json_encode([
-                'success' => false,
-                'message' => 'Allowance ID is required'
-            ]);
-            exit();
-        }
+    if (!isset($data->id)) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Allowance ID is required'
+        ]);
+        exit();
+    }
 
-        if (isset($data->is_archived)) {
-            $query = "UPDATE `allowances` SET `is_archived` = :is_archived WHERE id = :id";
-            $stmt = $db->prepare($query);
-            $stmt->bindParam(':id', $data->id);
-            $stmt->bindParam(':is_archived', $data->is_archived);
-            $action = $data->is_archived ? 'ARCHIVE' : 'RESTORE';
-        } else {
-            $query = "UPDATE `allowances` SET 
-                      `allowance_code` = :code,
-                      `allowance_name` = :name,
-                      `description` = :description,
-                      `is_percentage` = :is_percentage,
-                      `default_amount` = :default_amount,
-                      `is_bonded` = :is_bonded
-                      WHERE id = :id";
+    if (isset($data->is_archived)) {
+        // Archiving/unarchiving
+        $query = "UPDATE `allowances` SET `is_archived` = :is_archived WHERE id = :id";
+        $stmt = $db->prepare($query);
 
-            $stmt = $db->prepare($query);
-            $stmt->bindParam(':id', $data->id);
-            $stmt->bindParam(':code', $data->allowance_code);
-            $stmt->bindParam(':name', $data->allowance_name);
-            $stmt->bindParam(':description', $data->description);
-            $stmt->bindParam(':is_percentage', $data->is_percentage);
-            $stmt->bindParam(':default_amount', $data->default_amount);
-            $stmt->bindParam(':is_bonded', $data->bonded);
-            $action = 'UPDATE';
-        }
+        $stmt->bindParam(':id', $data->id);
+        $stmt->bindParam(':is_archived', $data->is_archived);
 
+        $action = $data->is_archived ? 'ARCHIVE' : 'RESTORE';
+    } else {
+        // Update all allowance fields
+        $query = "UPDATE `allowances` SET 
+            `allowance_code` = :code,
+            `allowance_name` = :name,
+            `description` = :description,
+            `is_percentage` = :is_percentage,
+            `default_amount` = :default_amount,
+            `is_bonded` = :is_bonded,
+            `eligible_status` = :eligible_status
+            WHERE id = :id";
+
+        $stmt = $db->prepare($query);
+
+        // Ensure proper defaults and types
+        $bonded = isset($data->bonded) ? (int)$data->bonded : 0;
+        $eligible_status = isset($data->eligible_status) ? $data->eligible_status : 'both';
+
+        $stmt->bindParam(':id', $data->id);
+        $stmt->bindParam(':code', $data->allowance_code);
+        $stmt->bindParam(':name', $data->allowance_name);
+        $stmt->bindParam(':description', $data->description);
+        $stmt->bindParam(':is_percentage', $data->is_percentage);
+        $stmt->bindParam(':default_amount', $data->default_amount);
+        $stmt->bindParam(':is_bonded', $bonded);
+        $stmt->bindParam(':eligible_status', $eligible_status);
+
+        $action = 'UPDATE';
+    }
+
+    // Execute and log
+    try {
         if ($stmt->execute()) {
             $logQuery = "INSERT INTO audit_logs (user_id, action, table_name, record_id) 
                          VALUES (:user_id, :action, 'allowances', :record_id)";
@@ -160,7 +178,21 @@ try {
                 'message' => 'Failed to update allowance'
             ]);
         }
+    } catch (PDOException $e) {
+        ErrorLogger::logDatabaseError($e, $query ?? 'Unknown query', [
+            'method' => $method ?? 'Unknown',
+            'endpoint' => 'allowances',
+            'data' => $data ?? null
+        ]);
+
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'message' => 'A database error occurred'
+        ]);
     }
+}
+
 
     // DELETE - Delete allowance
     else if ($method === 'DELETE') {

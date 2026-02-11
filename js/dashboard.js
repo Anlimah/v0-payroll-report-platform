@@ -83,7 +83,7 @@ function loadPage(page) {
     allowances: "Allowances",
     deductions: "Deductions",
     currency: "Currency Rates",
-    payroll: "Process Payroll",
+    payroll: "Bulk Payroll",
     reports: "Reports & Analytics",
   }
 
@@ -344,211 +344,726 @@ function loadCurrencyPage() {
   }
 }
 
+// ===== Payroll Page & Modal Initialization =====
 function loadPayrollPage() {
-  const mainContent = document.getElementById("mainContent")
+	const mainContent = document.getElementById("mainContent");
+	const page = window.processPayrollPage;
 
-  mainContent.innerHTML = `
-    <div class="card">
-      <div class="card-header">
-        <h3 class="card-title">Monthly Payroll Processing</h3>
-      </div>
-      <div style="padding: 24px;">
-        <div class="form-row" style="margin-bottom: 24px;">
-          <div class="form-group">
-            <label for="payrollMonth">Month</label>
-            <select id="payrollMonth" class="form-control">
-              <option value="1">January</option>
-              <option value="2">February</option>
-              <option value="3">March</option>
-              <option value="4">April</option>
-              <option value="5">May</option>
-              <option value="6">June</option>
-              <option value="7">July</option>
-              <option value="8">August</option>
-              <option value="9">September</option>
-              <option value="10">October</option>
-              <option value="11">November</option>
-              <option value="12">December</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="payrollYear">Year</label>
-            <select id="payrollYear" class="form-control">
-              ${generateYearOptions()}
-            </select>
-          </div>
+	mainContent.innerHTML = page.render();
+
+	// Initialize the page
+	page.init().then(() => {
+		page.attachEventListeners();
+		console.log("[v0] Process payroll page initialized");
+	});
+}
+
+// Bulk Payroll Helper Functions
+async function calculateBulkPayrollPreview(eligibleStaff, period) {
+	const staffPreview = [];
+
+	for (const staff of eligibleStaff) {
+		try {
+			// Fetch staff allowances and deductions
+			const response = await window.ApiService.get(
+				window.API_ENDPOINTS.PAYROLL_STAFF_SEARCH + `?staff_number=${staff.staff_number}`
+			);
+
+			if (response.success && response.data) {
+				const allowances = response.data.allowances.filter((a) => a.is_applicable);
+				const deductions = response.data.deductions.filter((d) => d.is_applicable);
+				const currencyRate = response.data.currency_rate || 1;
+
+				// Calculate totals
+				const basicSalary = Number.parseFloat(staff.basic_salary) || 0;
+				let totalAllowances = 0;
+				let totalDeductions = 0;
+
+				allowances.forEach((allow) => {
+					if (allow.is_percentage) {
+						totalAllowances += (basicSalary * allow.default_amount) / 100;
+					} else {
+						totalAllowances += Number.parseFloat(allow.default_amount) || 0;
+					}
+				});
+
+				deductions.forEach((deduct) => {
+					if (deduct.is_percentage) {
+						totalDeductions += (basicSalary * deduct.default_amount) / 100;
+					} else {
+						totalDeductions += Number.parseFloat(deduct.default_amount) || 0;
+					}
+				});
+
+				const grossSalary = basicSalary + totalAllowances;
+				const netSalary = grossSalary - totalDeductions;
+				const netSalaryGHS = netSalary * currencyRate;
+
+				staffPreview.push({
+					staff: staff,
+					basicSalary: basicSalary,
+					allowances: allowances,
+					deductions: deductions,
+					totalAllowances: totalAllowances,
+					totalDeductions: totalDeductions,
+					netSalary: netSalary,
+					netSalaryGHS: netSalaryGHS,
+					currencyRate: currencyRate,
+				});
+			}
+		} catch (error) {
+			console.error(`Error calculating payroll for staff ${staff.staff_number}:`, error);
+		}
+	}
+
+	return staffPreview;
+}
+
+function showBulkProcessingLoader(show) {
+	let loader = document.getElementById("bulkProcessingLoader");
+	if (!loader) {
+		loader = document.createElement("div");
+		loader.id = "bulkProcessingLoader";
+		loader.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 9999;
+            text-align: center;
+        `;
+		loader.innerHTML = `
+            <div style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">Processing Payroll</div>
+            <div style="border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+            <style>
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            </style>
+        `;
+		document.body.appendChild(loader);
+	}
+	loader.style.display = show ? "block" : "none";
+}
+
+function showStaffPayrollEditModal(staff, staffList, staffIndex) {
+	let modal = document.getElementById("staffPayrollEditModal");
+
+	if (!modal) {
+		modal = document.createElement("div");
+		modal.id = "staffPayrollEditModal";
+		modal.style.cssText = `
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+            display: none;
+        `;
+		document.body.appendChild(modal);
+	}
+
+	const payrollManager = window.payrollManagerInstance;
+
+	const allowanceCheckboxes = staff.allowances
+		.map(
+			(a, idx) => `
+        <div style="margin: 10px 0; padding: 10px; background-color: #f9f9f9; border-radius: 4px;">
+            <input type="checkbox" id="allowance_${idx}" class="allowanceCheckbox" data-id="${a.id}" data-index="${idx}" checked>
+            <label for="allowance_${idx}" style="margin-left: 8px;">
+                ${a.name} 
+                <span style="color: #666;">${a.is_percentage ? `(${a.percentage_value}%)` : `(${payrollManager.formatCurrency(a.amount, staff.currency)})`}</span>
+            </label>
+            ${
+				a.type === "fixed"
+					? `<input type="number" class="fixedAmountInput" data-type="allowance" data-index="${idx}" value="${a.amount || a.percentage_value}" style="margin-left: 10px; padding: 5px; width: 100px;" placeholder="Amount">`
+					: ""
+			}
         </div>
-        
-        <button id="selectPeriodBtn" class="btn btn-primary">Fetch Payroll Entries</button>
-        <button id="addEmployeePayrollBtn" class="btn btn-success" style="margin-left: 12px;">Add Employee Payroll</button>
-        
-        <div id="payrollEntries" style="display: none; margin-top: 32px;">
-          <h4 style="margin-bottom: 20px;">Payroll Entries</h4>
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Staff Number</th>
-                  <th>Name</th>
-                  <th>Department</th>
-                  <th>Basic Salary</th>
-                  <th>Allowances</th>
-                  <th>Deductions</th>
-                  <th>Net Salary (GHS)</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="entriesTableBody">
-              </tbody>
-            </table>
-          </div>
+    `
+		)
+		.join("");
+
+	const deductionCheckboxes = staff.deductions
+		.map(
+			(d, idx) => `
+        <div style="margin: 10px 0; padding: 10px; background-color: #f9f9f9; border-radius: 4px;">
+            <input type="checkbox" id="deduction_${idx}" class="deductionCheckbox" data-id="${d.id}" data-index="${idx}" checked>
+            <label for="deduction_${idx}" style="margin-left: 8px;">
+                ${d.name} 
+                <span style="color: #666;">${d.is_percentage ? `(${d.percentage_value}%)` : `(${payrollManager.formatCurrency(d.amount, staff.currency)})`}</span>
+            </label>
+            ${
+				d.type === "fixed"
+					? `<input type="number" class="fixedAmountInput" data-type="deduction" data-index="${idx}" value="${d.amount || d.percentage_value}" style="margin-left: 10px; padding: 5px; width: 100px;" placeholder="Amount">`
+					: ""
+			}
         </div>
-      </div>
-    </div>
+    `
+		)
+		.join("");
 
-    <div id="payrollModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; overflow-y: auto;">
-      <div style="background-color: white; margin: 40px auto; padding: 24px; border-radius: 8px; max-width: 800px; width: 90%;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-          <h3 style="margin: 0;">Add Staff to Payroll</h3>
-          <button id="closeModalBtn" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b;">&times;</button>
+	modal.innerHTML = `
+        <div style="
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Edit Payroll - ${staff.name}</h2>
+                <span style="font-size: 28px; cursor: pointer; font-weight: bold;" id="closeEditModal">&times;</span>
+            </div>
+
+            <div style="margin-bottom: 20px; padding: 15px; background-color: #f0f0f0; border-radius: 4px;">
+                <p style="margin: 5px 0;"><strong>Staff Number:</strong> ${staff.staffNumber}</p>
+                <p style="margin: 5px 0;"><strong>Basic Salary:</strong> ${payrollManager.formatCurrency(staff.basicSalary, staff.currency)}</p>
+            </div>
+
+            <h3>Allowances</h3>
+            <div id="allowancesContainer" style="margin-bottom: 20px;">
+                ${allowanceCheckboxes || "<p style='color: #999;'>No allowances available</p>"}
+            </div>
+
+            <h3>Deductions</h3>
+            <div id="deductionsContainer" style="margin-bottom: 20px;">
+                ${deductionCheckboxes || "<p style='color: #999;'>No deductions available</p>"}
+            </div>
+
+            <div id="editCalculationSummary" style="background-color: #f9f9f9; padding: 15px; border-radius: 4px; margin: 20px 0;">
+                <p style="margin: 5px 0;"><strong>Total Allowances:</strong> <span id="editTotalAllowances">${payrollManager.formatCurrency(staff.totalAllowances, staff.currency)}</span></p>
+                <p style="margin: 5px 0;"><strong>Total Deductions:</strong> <span id="editTotalDeductions">${payrollManager.formatCurrency(staff.totalDeductions, staff.currency)}</span></p>
+                <p style="margin: 5px 0; font-weight: bold; color: #27ae60;"><strong>Net Salary:</strong> <span id="editNetSalary">${payrollManager.formatCurrency(staff.netSalary, staff.currency)}</span></p>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button id="cancelEditBtn" class="btn btn-secondary" style="padding: 10px 20px;">Cancel</button>
+                <button id="saveEditBtn" class="btn btn-success" style="padding: 10px 20px;">Save Changes</button>
+            </div>
         </div>
+    `;
 
-        <div id="payrollForm">
-          <div class="form-row" style="margin-bottom: 24px;">
-            <div class="form-group">
-              <label for="modalPayrollMonth">Month</label>
-              <select id="modalPayrollMonth" class="form-control">
-                <option value="1">January</option>
-                <option value="2">February</option>
-                <option value="3">March</option>
-                <option value="4">April</option>
-                <option value="5">May</option>
-                <option value="6">June</option>
-                <option value="7">July</option>
-                <option value="8">August</option>
-                <option value="9">September</option>
-                <option value="10">October</option>
-                <option value="11">November</option>
-                <option value="12">December</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="modalPayrollYear">Year</label>
-              <select id="modalPayrollYear" class="form-control">
-                ${generateYearOptions()}
-              </select>
-            </div>
-          </div>
+	// Attach event listeners
+	document.getElementById("closeEditModal").onclick = () => {
+		modal.style.display = "none";
+	};
 
-          <div class="form-group">
-            <label for="staffNumber">Staff Number</label>
-            <div style="display: flex; gap: 12px;">
-              <input type="text" id="staffNumber" placeholder="Enter staff number" style="flex: 1;">
-              <button id="searchStaffBtn" class="btn btn-primary">Search</button>
+	document.getElementById("cancelEditBtn").onclick = () => {
+		modal.style.display = "none";
+	};
+
+	document.getElementById("saveEditBtn").onclick = () => {
+		// Get selected allowances and deductions
+		const selectedAllowances = Array.from(
+			modal.querySelectorAll(".allowanceCheckbox:checked")
+		).map((cb) => {
+			const idx = parseInt(cb.getAttribute("data-index"));
+			const fixedInput = modal.querySelector(
+				`.fixedAmountInput[data-type="allowance"][data-index="${idx}"]`
+			);
+			const allowance = { ...staff.allowances[idx] };
+			if (fixedInput && fixedInput.value) {
+				allowance.amount = parseFloat(fixedInput.value);
+				allowance.percentage_value = parseFloat(fixedInput.value);
+			}
+			return allowance;
+		});
+
+		const selectedDeductions = Array.from(
+			modal.querySelectorAll(".deductionCheckbox:checked")
+		).map((cb) => {
+			const idx = parseInt(cb.getAttribute("data-index"));
+			const fixedInput = modal.querySelector(
+				`.fixedAmountInput[data-type="deduction"][data-index="${idx}"]`
+			);
+			const deduction = { ...staff.deductions[idx] };
+			if (fixedInput && fixedInput.value) {
+				deduction.amount = parseFloat(fixedInput.value);
+				deduction.percentage_value = parseFloat(fixedInput.value);
+			}
+			return deduction;
+		});
+
+		// Recalculate payroll
+		const payrollCalc = payrollManager.calculatePayroll(
+			staff.basicSalary,
+			selectedAllowances,
+			selectedDeductions
+		);
+
+		// Update staff object
+		staffList[staffIndex].allowances = selectedAllowances;
+		staffList[staffIndex].deductions = selectedDeductions;
+		staffList[staffIndex].totalAllowances = payrollCalc.total_allowances;
+		staffList[staffIndex].totalDeductions = payrollCalc.total_deductions;
+		staffList[staffIndex].grossSalary = payrollCalc.gross_salary;
+		staffList[staffIndex].netSalary = payrollCalc.net_salary;
+		staffList[staffIndex].netSalaryGHS = payrollCalc.net_salary_ghs;
+
+		// Close modal
+		modal.style.display = "none";
+
+		// Refresh the bulk confirmation modal
+		const bulkModal = document.getElementById("bulkConfirmationModal");
+		if (bulkModal && bulkModal.style.display !== "none") {
+			// Update the table row
+			const row = bulkModal.querySelector(`tr:nth-child(${staffIndex + 1})`);
+			if (row) {
+				const cells = row.querySelectorAll("td");
+				if (cells.length >= 6) {
+					cells[3].textContent = payrollManager.formatCurrency(
+						payrollCalc.total_allowances,
+						staff.currency
+					);
+					cells[4].textContent = payrollManager.formatCurrency(
+						payrollCalc.total_deductions,
+						staff.currency
+					);
+					cells[5].textContent = payrollManager.formatCurrency(
+						payrollCalc.net_salary,
+						staff.currency
+					);
+				}
+			}
+		}
+
+		alert("Payroll updated for " + staff.name);
+	};
+
+	// Add live calculation on checkbox/input change
+	const updateCalculation = () => {
+		const selectedAllowances = Array.from(
+			modal.querySelectorAll(".allowanceCheckbox:checked")
+		).map((cb) => {
+			const idx = parseInt(cb.getAttribute("data-index"));
+			const fixedInput = modal.querySelector(
+				`.fixedAmountInput[data-type="allowance"][data-index="${idx}"]`
+			);
+			const allowance = { ...staff.allowances[idx] };
+			if (fixedInput && fixedInput.value) {
+				allowance.amount = parseFloat(fixedInput.value);
+				allowance.percentage_value = parseFloat(fixedInput.value);
+			}
+			return allowance;
+		});
+
+		const selectedDeductions = Array.from(
+			modal.querySelectorAll(".deductionCheckbox:checked")
+		).map((cb) => {
+			const idx = parseInt(cb.getAttribute("data-index"));
+			const fixedInput = modal.querySelector(
+				`.fixedAmountInput[data-type="deduction"][data-index="${idx}"]`
+			);
+			const deduction = { ...staff.deductions[idx] };
+			if (fixedInput && fixedInput.value) {
+				deduction.amount = parseFloat(fixedInput.value);
+				deduction.percentage_value = parseFloat(fixedInput.value);
+			}
+			return deduction;
+		});
+
+		const payrollCalc = payrollManager.calculatePayroll(
+			staff.basicSalary,
+			selectedAllowances,
+			selectedDeductions
+		);
+
+		document.getElementById("editTotalAllowances").textContent =
+			payrollManager.formatCurrency(payrollCalc.total_allowances, staff.currency);
+		document.getElementById("editTotalDeductions").textContent =
+			payrollManager.formatCurrency(payrollCalc.total_deductions, staff.currency);
+		document.getElementById("editNetSalary").textContent =
+			payrollManager.formatCurrency(payrollCalc.net_salary, staff.currency);
+	};
+
+	// Attach change listeners
+	setTimeout(() => {
+		modal.querySelectorAll(".allowanceCheckbox, .deductionCheckbox, .fixedAmountInput").forEach(
+			(elem) => {
+				elem.addEventListener("change", updateCalculation);
+				elem.addEventListener("input", updateCalculation);
+			}
+		);
+	}, 0);
+
+	modal.style.display = "block";
+
+	// Close on outside click
+	window.onclick = (event) => {
+		if (event.target == modal) {
+			modal.style.display = "none";
+		}
+	};
+}
+
+function showBulkConfirmationModal(staffList, period, month, year) {
+	let modal = document.getElementById("bulkConfirmationModal");
+
+	if (!modal) {
+		modal = document.createElement("div");
+		modal.id = "bulkConfirmationModal";
+		modal.style.cssText = `
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+            display: none;
+        `;
+		document.body.appendChild(modal);
+	}
+
+	const totalAllowances = staffList.reduce((sum, s) => sum + s.totalAllowances, 0);
+	const totalDeductions = staffList.reduce((sum, s) => sum + s.totalDeductions, 0);
+	const totalNetSalary = staffList.reduce((sum, s) => sum + s.netSalary, 0);
+
+	const tableHtml = staffList
+		.map(
+			(staff, index) => `
+        <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #ddd;">${staff.staffNumber}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #ddd;">${staff.name}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">
+                ${window.payrollManagerInstance.formatCurrency(staff.basicSalary, staff.currency)}
+            </td>
+            <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">
+                ${window.payrollManagerInstance.formatCurrency(staff.totalAllowances, staff.currency)}
+            </td>
+            <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">
+                ${window.payrollManagerInstance.formatCurrency(staff.totalDeductions, staff.currency)}
+            </td>
+            <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">
+                ${window.payrollManagerInstance.formatCurrency(staff.netSalary, staff.currency)}
+            </td>
+            <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">
+                <button class="editStaffBtn" data-index="${index}" style="padding: 5px 10px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">Edit</button>
+            </td>
+        </tr>
+    `
+		)
+		.join("");
+
+	modal.innerHTML = `
+        <div style="
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 900px;
+            max-height: 80vh;
+            overflow-y: auto;
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Confirm Bulk Payroll Processing</h2>
+                <span style="font-size: 28px; cursor: pointer; font-weight: bold;" id="closeBulkModal">&times;</span>
             </div>
-          </div>
-          
-          <div id="staffDetails" style="display: none; margin-top: 24px;">
-            <div class="card" style="background-color: #f8fafc; padding: 20px; margin-bottom: 24px;">
-              <h5 style="margin-bottom: 16px;">Staff Information</h5>
-              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
-                <div>
-                  <strong>Name:</strong> <span id="staffName"></span>
-                </div>
-                <div>
-                  <strong>Department:</strong> <span id="staffDepartment"></span>
-                </div>
-                <div>
-                  <strong>Designation:</strong> <span id="staffDesignation"></span>
-                </div>
-                <div>
-                  <strong>Basic Salary:</strong> <span id="staffBasicSalary"></span>
-                </div>
-              </div>
+
+            <p style="margin: 10px 0;"><strong>Period:</strong> ${month}/${year}</p>
+            <p style="margin: 10px 0;"><strong>Total Staff:</strong> ${staffList.length} employees</p>
+
+            <div style="margin: 20px 0;">
+                <h3>Staff Payroll Preview</h3>
+                <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd;">
+                    <thead style="background-color: #f9f9f9;">
+                        <tr>
+                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Staff #</th>
+                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Name</th>
+                            <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">Basic Salary</th>
+                            <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">Allowances</th>
+                            <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">Deductions</th>
+                            <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">Net Salary</th>
+                            <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableHtml}
+                    </tbody>
+                </table>
             </div>
-            
-            <div class="form-group">
-              <label for="isBonded">Bonded/Study Leave</label>
-                <select id="isBonded" class="form-control">
-                    <option value="0" selected>No</option>
-                    <option value="1">Yes</option>
-                </select>
+
+            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 4px; margin: 20px 0;">
+                <p style="margin: 5px 0;"><strong>Total Allowances:</strong> ${window.payrollManagerInstance.formatCurrency(totalAllowances, "USD")}</p>
+                <p style="margin: 5px 0;"><strong>Total Deductions:</strong> ${window.payrollManagerInstance.formatCurrency(totalDeductions, "USD")}</p>
+                <p style="margin: 5px 0; font-weight: bold; color: #27ae60;"><strong>Total Net Salary:</strong> ${window.payrollManagerInstance.formatCurrency(totalNetSalary, "USD")}</p>
             </div>
-            
-            <div class="form-group">
-              <label for="basicSalaryInput">Basic Salary (USD)</label>
-              <input type="number" id="basicSalaryInput" step="0.01" min="0">
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button id="cancelBulkBtn" class="btn btn-secondary" style="padding: 10px 20px;">Cancel</button>
+                <button id="confirmBulkBtn" class="btn btn-success" style="padding: 10px 20px;">Confirm & Process</button>
             </div>
-            
-            <div class="form-group">
-              <label>Allowances</label>
-              <div id="allowancesList"></div>
-            </div>
-            
-            <div class="form-group">
-              <label>Deductions</label>
-              <div id="deductionsList"></div>
-            </div>
-            
-            <div class="card" style="background-color: #eff6ff; padding: 20px; margin: 24px 0;">
-              <h5 style="margin-bottom: 16px;">Payroll Summary</h5>
-              <div style="display: flex; flex-direction: column; gap: 8px;">
-                <div style="display: flex; justify-content: space-between;">
-                  <span>Basic Salary:</span>
-                  <strong id="summaryBasic">$0.00</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between; color: #10b981;">
-                  <span>Total Allowances:</span>
-                  <strong id="summaryAllowances">$0.00</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                  <span>Gross Salary:</span>
-                  <strong id="summaryGross">$0.00</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between; color: #ef4444;">
-                  <span>Total Deductions:</span>
-                  <strong id="summaryDeductions">$0.00</strong>
-                </div>
-                <div style="border-top: 2px solid #2563eb; padding-top: 8px; margin-top: 8px; display: flex; justify-content: space-between; font-size: 18px;">
-                  <span>Net Salary (USD):</span>
-                  <strong id="summaryNet">$0.00</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 18px; color: #2563eb;">
-                  <span>Net Salary (GHS):</span>
-                  <strong id="summaryNetGHS">GHS 0.00</strong>
-                </div>
-                <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
-                  Exchange Rate: <span id="exchangeRate">1.0000</span>
-                </div>
-              </div>
-            </div>
-            
-            <div style="display: flex; gap: 12px;">
-              <button id="savePayrollBtn" class="btn btn-success">Save Payroll Entry</button>
-              <button id="resetFormBtn" class="btn btn-secondary">Reset</button>
-            </div>
-          </div>
         </div>
-      </div>
-    </div>
-  `
+    `;
 
-  // Set current month and year
-  const now = new Date()
-  document.getElementById("payrollMonth").value = now.getMonth() + 1
-  document.getElementById("payrollYear").value = now.getFullYear()
-  document.getElementById("modalPayrollMonth").value = now.getMonth() + 1
-  document.getElementById("modalPayrollYear").value = now.getFullYear()
+	document.getElementById("closeBulkModal").onclick = () => {
+		modal.style.display = "none";
+	};
 
-  // Initialize payroll manager
-  const payrollManager = new window.PayrollManager()
-  payrollManager.initialize()
+	document.getElementById("cancelBulkBtn").onclick = () => {
+		modal.style.display = "none";
+	};
 
-  // Store instance for deletePayrollEntry fallback
-  window.payrollManagerInstance = payrollManager
+	document.getElementById("confirmBulkBtn").onclick = async () => {
+		await processBulkPayroll(staffList, period);
+		modal.style.display = "none";
+	};
 
-  // Setup event listeners
-  setupPayrollEventListeners(payrollManager)
+	modal.style.display = "block";
+
+	// Add event listeners for edit buttons AFTER modal is displayed
+	setTimeout(() => {
+		const editButtons = modal.querySelectorAll(".editStaffBtn");
+		editButtons.forEach((btn) => {
+			btn.addEventListener("click", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				const index = parseInt(btn.getAttribute("data-index"));
+				showStaffPayrollEditModal(staffList[index], staffList, index);
+			});
+		});
+	}, 10);
+
+	// Close on outside click
+	window.onclick = (event) => {
+		if (event.target == modal) {
+			modal.style.display = "none";
+		}
+	};
+}
+
+async function processBulkPayroll(staffList, period) {
+	showBulkProcessingLoader(true);
+
+	try {
+		const staffEntries = staffList.map((staff) => ({
+			staffId: staff.id,
+			basicSalary: staff.basicSalary,
+			allowances: staff.allowances.map((a) => a.id),
+			deductions: staff.deductions.map((d) => d.id),
+		}));
+
+		const result = await window.payrollManagerInstance.savePayrollEntriesBulk(
+			period.id,
+			staffEntries
+		);
+
+		showBulkProcessingLoader(false);
+
+		// Show results modal
+		showBulkResultsModal(result, period);
+
+		// Refresh payroll entries
+		loadPayrollEntries(period.id);
+	} catch (error) {
+		console.error("Error processing bulk payroll:", error);
+		alert("Error processing bulk payroll: " + error.message);
+		showBulkProcessingLoader(false);
+	}
+}
+
+function showBulkResultsModal(result, period) {
+	let modal = document.getElementById("bulkResultsModal");
+
+	if (!modal) {
+		modal = document.createElement("div");
+		modal.id = "bulkResultsModal";
+		modal.style.cssText = `
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+            display: none;
+        `;
+		document.body.appendChild(modal);
+	}
+
+	const successRows = result.data.results
+		.filter((r) => r.success)
+		.map(
+			(r) => `
+        <tr style="background-color: #d4edda;">
+            <td style="padding: 8px; border: 1px solid #ddd;">${r.staffId}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;"><span style="color: #28a745; font-weight: bold;">✓ Success</span></td>
+            <td style="padding: 8px; border: 1px solid #ddd;">Payroll entry created</td>
+        </tr>
+    `
+		)
+		.join("");
+
+	const failureRows = result.data.results
+		.filter((r) => !r.success)
+		.map(
+			(r) => `
+        <tr style="background-color: #f8d7da;">
+            <td style="padding: 8px; border: 1px solid #ddd;">${r.staffId}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;"><span style="color: #dc3545; font-weight: bold;">✗ Failed</span></td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${r.error || "Unknown error"}</td>
+        </tr>
+    `
+		)
+		.join("");
+
+	modal.innerHTML = `
+        <div style="
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Bulk Payroll Processing Results</h2>
+                <span style="font-size: 28px; cursor: pointer; font-weight: bold;" id="closeBulkResultsModal">&times;</span>
+            </div>
+
+            <div style="background-color: #e7f3ff; padding: 15px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #2196F3;">
+                <p style="margin: 5px 0;"><strong>Total Processed:</strong> ${result.data.totalCount}</p>
+                <p style="margin: 5px 0;"><span style="color: #28a745; font-weight: bold;">✓ Successful:</span> ${result.data.successCount}</p>
+                <p style="margin: 5px 0;"><span style="color: #dc3545; font-weight: bold;">✗ Failed:</span> ${result.data.failureCount}</p>
+            </div>
+
+            <div style="margin: 20px 0;">
+                <h3>Processing Details</h3>
+                <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd;">
+                    <thead style="background-color: #f9f9f9;">
+                        <tr>
+                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Staff ID</th>
+                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Status</th>
+                            <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${successRows}
+                        ${failureRows}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button id="closeBulkResultsBtn" class="btn btn-primary" style="padding: 10px 20px;">Close</button>
+            </div>
+        </div>
+    `;
+
+	document.getElementById("closeBulkResultsModal").onclick = () => {
+		modal.style.display = "none";
+	};
+
+	document.getElementById("closeBulkResultsBtn").onclick = () => {
+		modal.style.display = "none";
+	};
+
+	modal.style.display = "block";
+
+	// Close on outside click
+	window.onclick = (event) => {
+		if (event.target == modal) {
+			modal.style.display = "none";
+		}
+	};
+}
+
+function setupPayrollEventListeners(payrollManager) {
+	document
+		.getElementById("processBulkPayrollBtn")
+		.addEventListener("click", async () => {
+			const month = document.getElementById("payrollMonth").value;
+			const year = document.getElementById("payrollYear").value;
+
+			if (!month || !year) {
+				alert("Please select a month and year");
+				return;
+			}
+
+			try {
+				// Show loading indicator
+				showBulkProcessingLoader(true);
+
+				// Get payroll period
+				const periods = await window.ApiService.get(window.API_ENDPOINTS.PAYROLL_PERIODS);
+				const period = periods.data.find((p) => p.month == month && p.year == year);
+
+				if (!period) {
+					alert("Payroll period not found");
+					showBulkProcessingLoader(false);
+					return;
+				}
+
+				// Get all staff with hire dates
+				const staffResponse = await window.ApiService.get(window.API_ENDPOINTS.STAFFS);
+				const allStaff = staffResponse.data;
+
+				// Get existing payroll entries for this period
+				const entriesResponse = await window.ApiService.get(
+					window.API_ENDPOINTS.PAYROLL_ENTRIES + `?period_id=${period.id}`
+				);
+				const existingEntries = entriesResponse.data || [];
+				const existingStaffIds = new Set(existingEntries.map((e) => e.staff_id));
+
+				// Filter eligible staff (hire date on or before period, and no existing entry)
+				const periodDate = new Date(year, month - 1, 1);
+				const eligibleStaff = allStaff.filter((staff) => {
+					const hireDate = new Date(staff.hire_date);
+					return (
+						hireDate <= periodDate &&
+						!existingStaffIds.has(staff.id) &&
+						staff.is_archived === 0
+					);
+				});
+
+				if (eligibleStaff.length === 0) {
+					alert("No eligible staff found for bulk processing");
+					showBulkProcessingLoader(false);
+					return;
+				}
+
+				// Calculate payroll for preview
+				const staffPreview = await calculateBulkPayrollPreview(
+					eligibleStaff,
+					period
+				);
+
+				// Show confirmation modal
+				showBulkConfirmationModal(staffPreview, period, month, year);
+
+				showBulkProcessingLoader(false);
+			} catch (error) {
+				console.error("Error preparing bulk payroll:", error);
+				alert("Error preparing bulk payroll");
+				showBulkProcessingLoader(false);
+			}
+		});
+}
+
+// ===== Helper: Month Options =====
+function generateMonthOptions() {
+  const months = [
+    "January","February","March","April","May","June",
+    "July","August","September","October","November","December"
+  ]
+  return months.map((m,i) => `<option value="${i+1}">${m}</option>`).join("")
 }
 
 function generateYearOptions() {
@@ -560,616 +1075,90 @@ function generateYearOptions() {
   return options
 }
 
-function setupPayrollEventListeners(payrollManager) {
-  // Select period button
-  document.getElementById("selectPeriodBtn").addEventListener("click", async () => {
-    const month = document.getElementById("payrollMonth").value
-    const year = document.getElementById("payrollYear").value
-
-    try {
-      // Fetch existing period
-      const periods = await window.ApiService.get(window.API_ENDPOINTS.PAYROLL_PERIODS)
-      const period = periods.data.find((p) => p.month == month && p.year == year)
-
-      if (period) {
-        payrollManager.currentPeriod = period.id
-        document.getElementById("payrollEntries").style.display = "block"
-        loadPayrollEntries(period.id)
-      } else {
-        alert("No payroll period found for the selected month and year. Please create one first.")
-      }
-    } catch (error) {
-      alert("Error fetching payroll entries")
-      console.error(error)
-    }
-  })
-
-  document.getElementById("addEmployeePayrollBtn").addEventListener("click", () => {
-    // Validate that a period is selected
-    const month = document.getElementById("payrollMonth").value
-    const year = document.getElementById("payrollYear").value
-
-    if (!month || !year) {
-      alert("Please select a month and year first")
-      return
-    }
-
-    // Sync modal period with main period selectors
-    document.getElementById("modalPayrollMonth").value = month
-    document.getElementById("modalPayrollYear").value = year
-
-    // Open modal
-    document.getElementById("payrollModal").style.display = "block"
-  })
-
-  document.getElementById("closeModalBtn").addEventListener("click", () => {
-    document.getElementById("payrollModal").style.display = "none"
-    resetPayrollForm()
-  })
-
-  // Close modal when clicking outside of it
-  document.getElementById("payrollModal").addEventListener("click", (e) => {
-    if (e.target.id === "payrollModal") {
-      document.getElementById("payrollModal").style.display = "none"
-      resetPayrollForm()
-    }
-  })
-
-  // Search staff button
-  document.getElementById("searchStaffBtn").addEventListener("click", async () => {
-    const staffNumber = document.getElementById("staffNumber").value
-
-    if (!staffNumber) {
-      alert("Please enter a staff number")
-      return
-    }
-
-    try {
-      const response = await window.ApiService.get(
-        window.API_ENDPOINTS.PAYROLL_STAFF_SEARCH + `?staff_number=${staffNumber}`,
-      )
-
-      if (response.success && response.data) {
-        const staff = response.data.staff
-        const allowances = response.data.allowances
-        const deductions = response.data.deductions
-        const currencyRate = response.data.currency_rate
-
-        // Store currency rate in payroll manager
-        payrollManager.currencyRate = currencyRate
-
-        displayStaffDetails(staff, payrollManager)
-
-        displayAllowancesWithApplicable(allowances, payrollManager)
-        displayDeductionsWithApplicable(deductions, payrollManager)
-
-        // Hide bonded allowances based on staff bonded status
-        hideBondedAllowances(payrollManager)
-
-        calculateAndDisplaySummary(payrollManager)
-      } else {
-        alert(response.message || "Staff not found")
-      }
-    } catch (error) {
-      alert("Error searching for staff")
-      console.error(error)
-    }
-  })
-
-  // Calculate on input change for basic salary
-  document.getElementById("basicSalaryInput")?.addEventListener("input", () => {
-    calculateAndDisplaySummary(payrollManager)
-  })
-
-  // Save payroll button
-  document.getElementById("savePayrollBtn")?.addEventListener("click", async () => {
-    const month = document.getElementById("modalPayrollMonth").value
-    const year = document.getElementById("modalPayrollYear").value
-
-    // Get or create period
-    try {
-      let periodId = null
-      const periods = await window.ApiService.get(window.API_ENDPOINTS.PAYROLL_PERIODS)
-      const period = periods.data.find((p) => p.month == month && p.year == year)
-
-      if (period) {
-        periodId = period.id
-      } else {
-        // Create new period if it doesn't exist
-        const response = await window.ApiService.post(window.API_ENDPOINTS.PAYROLL_PERIODS, {
-          month: Number.parseInt(month),
-          year: Number.parseInt(year),
-        })
-        if (response.success) {
-          periodId = response.id
-        }
-      }
-
-      if (periodId) {
-        payrollManager.currentPeriod = periodId
-        await savePayrollEntry(payrollManager)
-        // Close modal after saving
-        document.getElementById("payrollModal").style.display = "none"
-        // Reload entries in main view
-        loadPayrollEntries(periodId)
-      }
-    } catch (error) {
-      alert("Error saving payroll entry")
-      console.error(error)
-    }
-  })
-
-  // Reset button
-  document.getElementById("resetFormBtn")?.addEventListener("click", () => {
-    resetPayrollForm()
-  })
-
-  // Display exchange rate
-  document.getElementById("exchangeRate").textContent = payrollManager.currencyRate.toFixed(4)
-}
-
-function displayStaffDetails(staff, payrollManager) {
-  document.getElementById("staffName").textContent =
-    `${staff.first_name} ${staff.last_name}` + (staff.other_names ? ` ${staff.other_names}` : "")
-  document.getElementById("staffDepartment").textContent = staff.department_name || "N/A"
-  document.getElementById("staffDesignation").textContent = staff.designation_name || "N/A"
-  document.getElementById("staffBasicSalary").textContent = payrollManager.formatCurrency(staff.basic_salary)
-
-  document.getElementById("basicSalaryInput").value = staff.basic_salary
-  document.getElementById("staffDetails").style.display = "block"
-  payrollManager.currentStaff = staff // Store current staff for saving
-}
-
-async function loadAllowancesAndDeductions(payrollManager) {
-  try {
-    const [allowancesRes, deductionsRes] = await Promise.all([
-      window.ApiService.get(window.API_ENDPOINTS.ALLOWANCES),
-      window.ApiService.get(window.API_ENDPOINTS.DEDUCTIONS),
-    ])
-
-    if (allowancesRes.success) {
-      displayAllowances(allowancesRes.data, payrollManager)
-    }
-
-    if (deductionsRes.success) {
-      displayDeductions(deductionsRes.data, payrollManager)
-    }
-  } catch (error) {
-    console.error("Error loading allowances and deductions:", error)
-  }
-}
-
-function displayAllowances(allowances, payrollManager) {
-  const container = document.getElementById("allowancesList")
-  container.innerHTML = allowances
-    .map(
-      (allowance) => `
-    <div style="display: flex; align-items: center; gap: 12px; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px;">
-      <input type="checkbox" id="allow_${allowance.id}" data-id="${
-        allowance.id
-      }" class="allowance-checkbox" data-is-bonded="${allowance.is_bonded ? 1 : 0}">
-      <label for="allow_${allowance.id}" style="flex: 1; margin: 0;">${allowance.allowance_name}</label>
-      <div style="display: flex; gap: 8px; align-items: center;">
-        <input type="number" id="allow_amount_${allowance.id}" placeholder="${
-          allowance.is_percentage ? "%" : "Amount"
-        }" 
-               step="0.01" min="0" value="${allowance.default_amount}" 
-               style="width: 100px;" disabled>
-        <span style="font-size: 12px; color: #64748b;">${allowance.is_percentage ? "%" : "USD"}</span>
-      </div>
-    </div>
-  `,
-    )
-    .join("")
-
-  // Add event listeners for allowance checkboxes
-  document.querySelectorAll(".allowance-checkbox").forEach((checkbox) => {
-    checkbox.addEventListener("change", (e) => {
-      const amountInput = document.getElementById(`allow_amount_${e.target.dataset.id}`)
-      amountInput.disabled = !e.target.checked
-      if (!e.target.checked) {
-        amountInput.value = "" // Clear value when unchecked
-      }
-      calculateAndDisplaySummary(payrollManager)
-    })
-  })
-
-  // Add event listeners for allowance amount inputs
-  document.querySelectorAll('[id^="allow_amount_"]').forEach((input) => {
-    input.addEventListener("input", () => {
-      calculateAndDisplaySummary(payrollManager)
-    })
-  })
-
-  const isBondedSelect = document.getElementById("isBonded")
-  if (isBondedSelect) {
-    // Remove any existing event listeners by cloning the element
-    const newIsBondedSelect = isBondedSelect.cloneNode(true)
-    isBondedSelect.parentNode.replaceChild(newIsBondedSelect, isBondedSelect)
-
-    // Add the event listener to the new element
-    newIsBondedSelect.addEventListener("change", () => {
-      hideBondedAllowances(payrollManager)
-    })
-  }
-}
-
-function displayAllowancesWithApplicable(allowances, payrollManager) {
-  const container = document.getElementById("allowancesList")
-  container.innerHTML = allowances
-    .map(
-      (allowance) => `
-    <div style="display: flex; align-items: center; gap: 12px; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px;">
-      <input type="checkbox" id="allow_${allowance.id}" data-id="${
-        allowance.id
-      }" class="allowance-checkbox" data-is-bonded="${allowance.is_bonded ? 1 : 0}" ${allowance.is_applicable ? "checked" : ""}>
-      <label for="allow_${allowance.id}" style="flex: 1; margin: 0;">${allowance.allowance_name}</label>
-      <div style="display: flex; gap: 8px; align-items: center;">
-        <input type="number" id="allow_amount_${allowance.id}" placeholder="${
-          allowance.is_percentage ? "%" : "Amount"
-        }" 
-               step="0.01" min="0" value="${allowance.default_amount}" 
-               style="width: 100px;" ${allowance.is_applicable ? "" : "disabled"}>
-        <span style="font-size: 12px; color: #64748b;">${allowance.is_percentage ? "%" : "USD"}</span>
-      </div>
-    </div>
-  `,
-    )
-    .join("")
-
-  // Add event listeners for allowance checkboxes
-  document.querySelectorAll(".allowance-checkbox").forEach((checkbox) => {
-    checkbox.addEventListener("change", (e) => {
-      const amountInput = document.getElementById(`allow_amount_${e.target.dataset.id}`)
-      amountInput.disabled = !e.target.checked
-      if (!e.target.checked) {
-        amountInput.value = "" // Clear value when unchecked
-      }
-      calculateAndDisplaySummary(payrollManager)
-    })
-  })
-
-  // Add event listeners for allowance amount inputs
-  document.querySelectorAll('[id^="allow_amount_"]').forEach((input) => {
-    input.addEventListener("input", () => {
-      calculateAndDisplaySummary(payrollManager)
-    })
-  })
-
-  const isBondedSelect = document.getElementById("isBonded")
-  if (isBondedSelect) {
-    // Remove any existing event listeners by cloning the element
-    const newIsBondedSelect = isBondedSelect.cloneNode(true)
-    isBondedSelect.parentNode.replaceChild(newIsBondedSelect, isBondedSelect)
-
-    // Add the event listener to the new element
-    newIsBondedSelect.addEventListener("change", () => {
-      hideBondedAllowances(payrollManager)
-    })
-  }
-}
-
-function displayDeductions(deductions, payrollManager) {
-  const container = document.getElementById("deductionsList")
-  container.innerHTML = deductions
-    .map(
-      (deduction) => `
-    <div style="display: flex; align-items: center; gap: 12px; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px;">
-      <input type="checkbox" id="deduct_${deduction.id}" data-id="${deduction.id}" class="deduction-checkbox">
-      <label for="deduct_${deduction.id}" style="flex: 1; margin: 0;">${deduction.deduction_name}</label>
-      <div style="display: flex; gap: 8px; align-items: center;">
-        <input type="number" id="deduct_amount_${deduction.id}" placeholder="${
-          deduction.is_percentage ? "%" : "Amount"
-        }" 
-               step="0.01" min="0" value="${deduction.default_amount}" 
-               style="width: 100px;" disabled>
-        <span style="font-size: 12px; color: #64748b;">${deduction.is_percentage ? "%" : "USD"}</span>
-      </div>
-    </div>
-  `,
-    )
-    .join("")
-
-  // Add event listeners
-  document.querySelectorAll(".deduction-checkbox").forEach((checkbox) => {
-    checkbox.addEventListener("change", (e) => {
-      const amountInput = document.getElementById(`deduct_amount_${e.target.dataset.id}`)
-      amountInput.disabled = !e.target.checked
-      if (!e.target.checked) {
-        amountInput.value = "" // Clear value when unchecked
-      }
-      calculateAndDisplaySummary(payrollManager)
-    })
-  })
-
-  document.querySelectorAll('[id^="deduct_amount_"]').forEach((input) => {
-    input.addEventListener("input", () => {
-      calculateAndDisplaySummary(payrollManager)
-    })
-  })
-}
-
-function displayDeductionsWithApplicable(deductions, payrollManager) {
-  const container = document.getElementById("deductionsList")
-  container.innerHTML = deductions
-    .map(
-      (deduction) => `
-    <div style="display: flex; align-items: center; gap: 12px; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px;">
-      <input type="checkbox" id="deduct_${deduction.id}" data-id="${deduction.id}" class="deduction-checkbox" ${deduction.is_applicable ? "checked" : ""}>
-      <label for="deduct_${deduction.id}" style="flex: 1; margin: 0;">${deduction.deduction_name}</label>
-      <div style="display: flex; gap: 8px; align-items: center;">
-        <input type="number" id="deduct_amount_${deduction.id}" placeholder="${
-          deduction.is_percentage ? "%" : "Amount"
-        }" 
-               step="0.01" min="0" value="${deduction.default_amount}" 
-               style="width: 100px;" ${deduction.is_applicable ? "" : "disabled"}>
-        <span style="font-size: 12px; color: #64748b;">${deduction.is_percentage ? "%" : "USD"}</span>
-      </div>
-    </div>
-  `,
-    )
-    .join("")
-
-  // Add event listeners
-  document.querySelectorAll(".deduction-checkbox").forEach((checkbox) => {
-    checkbox.addEventListener("change", (e) => {
-      const amountInput = document.getElementById(`deduct_amount_${e.target.dataset.id}`)
-      amountInput.disabled = !e.target.checked
-      if (!e.target.checked) {
-        amountInput.value = "" // Clear value when unchecked
-      }
-      calculateAndDisplaySummary(payrollManager)
-    })
-  })
-
-  document.querySelectorAll('[id^="deduct_amount_"]').forEach((input) => {
-    input.addEventListener("input", () => {
-      calculateAndDisplaySummary(payrollManager)
-    })
-  })
-}
-
-function hideBondedAllowances(payrollManager) {
-  const isBonded = document.getElementById("isBonded").value === "1"
-
-  document.querySelectorAll(".allowance-checkbox").forEach((checkbox) => {
-    const isBondedAllowance = checkbox.dataset.isBonded === "1"
-    const allowanceContainer = checkbox.closest("div")
-    const amountInput = document.getElementById(`allow_amount_${checkbox.dataset.id}`)
-
-    if (isBonded && isBondedAllowance) {
-      // Hide bonded allowances when staff is bonded
-      checkbox.checked = false
-      checkbox.disabled = true
-      amountInput.value = ""
-      amountInput.disabled = true
-      allowanceContainer.style.opacity = "0.5"
-      allowanceContainer.style.pointerEvents = "none"
-    } else {
-      // Show all allowances when staff is not bonded
-      checkbox.disabled = false
-      allowanceContainer.style.opacity = "1"
-      allowanceContainer.style.pointerEvents = "auto"
-      // Keep the amount input disabled unless checkbox is checked
-      if (!checkbox.checked) {
-        amountInput.disabled = true
-      }
-    }
-  })
-
-  // Recalculate summary after hiding/showing allowances
-  calculateAndDisplaySummary(payrollManager)
-}
-
-function calculateAndDisplaySummary(payrollManager) {
-  const basicSalaryInput = document.getElementById("basicSalaryInput")
-  const basicSalary = Number.parseFloat(basicSalaryInput.value) || 0
-
-  // Get selected allowances
-  const allowances = []
-  document.querySelectorAll(".allowance-checkbox:checked").forEach((checkbox) => {
-    const id = checkbox.dataset.id
-    const amountInput = document.getElementById(`allow_amount_${id}`)
-    const amount = Number.parseFloat(amountInput.value) || 0
-
-    // Determine if percentage based on placeholder
-    const isPercentage = amountInput.placeholder.includes("%")
-
-    allowances.push({
-      allowance_id: Number.parseInt(id),
-      amount: amount,
-      is_percentage: isPercentage,
-      percentage_value: isPercentage ? amount : 0,
-    })
-  })
-
-  // Get selected deductions
-  const deductions = []
-  document.querySelectorAll(".deduction-checkbox:checked").forEach((checkbox) => {
-    const id = checkbox.dataset.id
-    const amountInput = document.getElementById(`deduct_amount_${id}`)
-    const amount = Number.parseFloat(amountInput.value) || 0
-
-    const isPercentage = amountInput.placeholder.includes("%")
-
-    deductions.push({
-      deduction_id: Number.parseInt(id),
-      amount: amount,
-      is_percentage: isPercentage,
-      percentage_value: isPercentage ? amount : 0,
-    })
-  })
-
-  // Calculate
-  const summary = payrollManager.calculatePayroll(basicSalary, allowances, deductions)
-
-  // Display
-  document.getElementById("summaryBasic").textContent = payrollManager.formatCurrency(summary.basic_salary)
-  document.getElementById("summaryAllowances").textContent = payrollManager.formatCurrency(summary.total_allowances)
-  document.getElementById("summaryGross").textContent = payrollManager.formatCurrency(summary.gross_salary)
-  document.getElementById("summaryDeductions").textContent = payrollManager.formatCurrency(summary.total_deductions)
-  document.getElementById("summaryNet").textContent = payrollManager.formatCurrency(summary.net_salary)
-  document.getElementById("summaryNetGHS").textContent = payrollManager.formatCurrencyGHS(summary.net_salary_ghs)
-}
-
-async function savePayrollEntry(payrollManager) {
-  if (!payrollManager.currentPeriod || !payrollManager.currentStaff) {
-    alert("Please select a period and staff member")
-    return
-  }
-
-  const basicSalaryInput = document.getElementById("basicSalaryInput")
-  const basicSalary = Number.parseFloat(basicSalaryInput.value) || 0
-
-  // Get selected allowances
-  const allowances = []
-  document.querySelectorAll(".allowance-checkbox:checked").forEach((checkbox) => {
-    const id = checkbox.dataset.id
-    const amountInput = document.getElementById(`allow_amount_${id}`)
-    const amount = Number.parseFloat(amountInput.value) || 0
-    const isPercentage = amountInput.placeholder.includes("%")
-
-    allowances.push({
-      allowance_id: Number.parseInt(id),
-      amount: amount,
-      is_percentage: isPercentage,
-      percentage_value: isPercentage ? amount : 0,
-    })
-  })
-
-  // Get selected deductions
-  const deductions = []
-  document.querySelectorAll(".deduction-checkbox:checked").forEach((checkbox) => {
-    const id = checkbox.dataset.id
-    const amountInput = document.getElementById(`deduct_amount_${id}`)
-    const amount = Number.parseFloat(amountInput.value) || 0
-    const isPercentage = amountInput.placeholder.includes("%")
-
-    deductions.push({
-      deduction_id: Number.parseInt(id),
-      amount: amount,
-      is_percentage: isPercentage,
-      percentage_value: isPercentage ? amount : 0,
-    })
-  })
-
-  try {
-    const response = await payrollManager.savePayrollEntry(
-      payrollManager.currentPeriod,
-      payrollManager.currentStaff.id,
-      basicSalary,
-      allowances,
-      deductions,
-    )
-
-    if (response.success) {
-      alert("Payroll entry saved successfully!")
-      resetPayrollForm()
-      loadPayrollEntries(payrollManager.currentPeriod)
-    } else {
-      alert(response.message || "Failed to save payroll entry")
-    }
-  } catch (error) {
-    alert("An error occurred while saving the payroll entry")
-    console.error(error)
-  }
-}
-
-function resetPayrollForm() {
-  document.getElementById("staffNumber").value = ""
-  document.getElementById("staffDetails").style.display = "none"
-  // Fix: Declare payrollManagerInstance using 'let' as it's used before assignment in deletePayrollEntry
-  const payrollManagerInstance = window.payrollManagerInstance // Assign it to a local variable
-  payrollManagerInstance.currentStaff = null // Clear current staff
-
-  document.querySelectorAll(".allowance-checkbox, .deduction-checkbox").forEach((cb) => {
-    cb.checked = false
-    cb.disabled = false // Re-enable checkboxes
-  })
-  document.querySelectorAll('[id^="allow_amount_"], [id^="deduct_amount_"]').forEach((input) => {
-    input.disabled = true
-    input.value = "" // Clear values on reset
-  })
-  document.getElementById("basicSalaryInput").value = ""
-  // Reset summary
-  document.getElementById("summaryBasic").textContent = "$0.00"
-  document.getElementById("summaryAllowances").textContent = "$0.00"
-  document.getElementById("summaryGross").textContent = "$0.00"
-  document.getElementById("summaryDeductions").textContent = "$0.00"
-  document.getElementById("summaryNet").textContent = "$0.00"
-  document.getElementById("summaryNetGHS").textContent = "GHS 0.00"
-
-  // Reset bonded/study leave selection if it was changed
-  const isBondedSelect = document.getElementById("isBonded")
-  if (isBondedSelect) {
-    isBondedSelect.value = "0"
-    // Trigger the change event to re-evaluate allowances
-    isBondedSelect.dispatchEvent(new Event("change"))
-  }
-}
-
 async function loadPayrollEntries(periodId) {
-  try {
-    const response = await window.ApiService.get(window.API_ENDPOINTS.PAYROLL_ENTRIES + `?period_id=${periodId}`)
+	try {
+		const response = await window.ApiService.get(
+			window.API_ENDPOINTS.PAYROLL_ENTRIES + `?period_id=${periodId}`
+		);
 
-    if (response.success) {
-      const tbody = document.getElementById("entriesTableBody")
-      tbody.innerHTML = response.data
-        .map(
-          (entry) => `
+		if (response.success) {
+			const tbody = document.getElementById("entriesTableBody");
+			tbody.innerHTML = response.data
+				.map(
+					(entry) => `
         <tr>
           <td>${entry.staff_number}</td>
           <td>${entry.first_name} ${entry.last_name}</td>
           <td>${entry.department_name || "N/A"}</td>
           <td>$${Number.parseFloat(entry.basic_salary).toFixed(2)}</td>
-          <td style="color: #10b981;">$${Number.parseFloat(entry.total_allowances).toFixed(2)}</td>
-          <td style="color: #ef4444;">$${Number.parseFloat(entry.total_deductions).toFixed(2)}</td>
-          <td><strong>GHS ${Number.parseFloat(entry.net_salary_ghs).toLocaleString()}</strong></td>
+          <td style="color: #10b981;">$${Number.parseFloat(
+						entry.total_allowances
+					).toFixed(2)}</td>
+          <td style="color: #ef4444;">$${Number.parseFloat(
+						entry.total_deductions
+					).toFixed(2)}</td>
+          <td><strong>GHS ${Number.parseFloat(
+						entry.net_salary_ghs
+					).toLocaleString()}</strong></td>
           <td>
             <div class="action-buttons">
-              <button class="btn btn-sm btn-danger" onclick="deletePayrollEntry(${entry.id})">Delete</button>
+              <button class="btn btn-sm btn-danger" onclick="deletePayrollEntry(${
+								entry.id
+							})">Delete</button>
             </div>
           </td>
         </tr>
-      `,
-        )
-        .join("")
-    }
-  } catch (error) {
-    console.error("Error loading payroll entries:", error)
-  }
+      `
+				)
+				.join("");
+		}
+	} catch (error) {
+		console.error("Error loading payroll entries:", error);
+	}
 }
 
 async function deletePayrollEntry(entryId) {
-  if (!confirm("Are you sure you want to delete this payroll entry?")) {
-    return
-  }
+	if (!confirm("Are you sure you want to delete this payroll entry?")) {
+		return;
+	}
 
-  try {
-    const response = await window.ApiService.delete(window.API_ENDPOINTS.PAYROLL_ENTRIES, { id: entryId })
+	try {
+		const response = await window.ApiService.delete(
+			window.API_ENDPOINTS.PAYROLL_ENTRIES,
+			{ id: entryId }
+		);
 
-    if (response.success) {
-      alert("Payroll entry deleted successfully")
-      // Reload entries using the current period stored in payrollManager
-      if (window.payrollManagerInstance && window.payrollManagerInstance.currentPeriod) {
-        loadPayrollEntries(window.payrollManagerInstance.currentPeriod)
-      } else {
-        // Fallback if payrollManagerInstance is not available or currentPeriod is not set
-        const currentMonth = document.getElementById("payrollMonth").value
-        const currentYear = document.getElementById("payrollYear").value
-        const periods = await window.ApiService.get(window.API_ENDPOINTS.PAYROLL_PERIODS)
-        const period = periods.data.find((p) => p.month == currentMonth && p.year == currentYear)
-        if (period) {
-          loadPayrollEntries(period.id)
-        } else {
-          alert("Could not determine the current payroll period to reload entries.")
-        }
-      }
-    }
-  } catch (error) {
-    alert("Failed to delete payroll entry")
-    console.error(error)
-  }
+		if (response.success) {
+			alert("Payroll entry deleted successfully");
+			// Reload entries using the current period stored in payrollManager
+			if (
+				window.payrollManagerInstance &&
+				window.payrollManagerInstance.currentPeriod
+			) {
+				loadPayrollEntries(window.payrollManagerInstance.currentPeriod);
+			} else {
+				// Fallback if payrollManagerInstance is not available or currentPeriod is not set
+				const currentMonth = document.getElementById("payrollMonth").value;
+				const currentYear = document.getElementById("payrollYear").value;
+				const periods = await window.ApiService.get(
+					window.API_ENDPOINTS.PAYROLL_PERIODS
+				);
+				const period = periods.data.find(
+					(p) => p.month == currentMonth && p.year == currentYear
+				);
+				if (period) {
+					loadPayrollEntries(period.id);
+				} else {
+					alert(
+						"Could not determine the current payroll period to reload entries."
+					);
+				}
+			}
+		}
+	} catch (error) {
+		alert("Failed to delete payroll entry");
+		console.error(error);
+	}
 }
 
 function loadReportsPage() {
@@ -1323,7 +1312,7 @@ function displayPayrollSummary(data) {
         </div>
         <div>
           <div style="font-size: 12px; color: #64748b;">Total Basic Salary</div>
-          <div style="font-size: 24px; font-weight: 700;">$${Number.parseFloat(
+          <div style="font-size: 24px; font-weight: 700; color: #10b981;">$${Number.parseFloat(
             data.totals.basic_salary,
           ).toLocaleString()}</div>
         </div>

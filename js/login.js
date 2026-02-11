@@ -32,7 +32,15 @@ document.addEventListener("DOMContentLoaded", () => {
 				body: JSON.stringify({ username, password }),
 			});
 
-			const data = await response.json();
+			const raw = await response.text();
+			console.log(raw);
+
+			let data;
+			try {
+				data = JSON.parse(raw);
+			} catch (e) {
+				throw new Error("Invalid JSON response");
+			}
 
 			if (data.success) {
 				AuthService.saveAuth(data.token, data.user);
@@ -41,6 +49,7 @@ document.addEventListener("DOMContentLoaded", () => {
 				errorMessage.textContent = data.message || "Login failed";
 				errorMessage.style.display = "block";
 			}
+
 		} catch (error) {
 			errorMessage.textContent = "An error occurred. Please try again.";
 			errorMessage.style.display = "block";

@@ -25,9 +25,9 @@ try {
         $query = "SELECT 
                     d.id,
                     d.deduction_name,
-                    d.type,
+                    d.is_percentage,
                     d.default_amount,
-                    COALESCE(sd.custom_amount, d.default_amount) as custom_amount,
+                    COALESCE(sd.amount, d.default_amount) as custom_amount,
                     CASE WHEN sd.staff_id IS NOT NULL THEN 1 ELSE 0 END as is_assigned
                   FROM deductions d
                   LEFT JOIN staff_deductions sd ON d.id = sd.deduction_id AND sd.staff_id = :staff_id
@@ -56,14 +56,16 @@ try {
 
         $customAmount = isset($data->custom_amount) ? $data->custom_amount : null;
         
-        $query = "INSERT INTO staff_deductions (staff_id, deduction_id, custom_amount)
-                  VALUES (:staff_id, :deduction_id, :custom_amount)
-                  ON DUPLICATE KEY UPDATE custom_amount = :custom_amount";
+        $query = "INSERT INTO staff_deductions (staff_id, deduction_id, amount, is_percentage)
+                  VALUES (:staff_id, :deduction_id, :amount, :is_percentage)
+                  ON DUPLICATE KEY UPDATE amount = :amount, is_percentage = :is_percentage";
         
         $stmt = $db->prepare($query);
         $stmt->bindParam(':staff_id', $data->staff_id);
         $stmt->bindParam(':deduction_id', $data->deduction_id);
-        $stmt->bindParam(':custom_amount', $customAmount);
+        $stmt->bindParam(':amount', $customAmount);
+        $isPercentage = isset($data->is_percentage) ? $data->is_percentage : 0;
+        $stmt->bindParam(':is_percentage', $isPercentage);
 
         if ($stmt->execute()) {
             http_response_code(201);

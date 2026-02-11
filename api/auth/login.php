@@ -1,8 +1,9 @@
 <?php
 include_once '../config/cors.php';
 include_once '../config/database.php';
-include_once '../middleware/auth.php';
+include_once '../utils/token.php';   // ✅ ADD THIS
 include_once '../config/error-logger.php';
+
 
 try {
     $database = new Database();
